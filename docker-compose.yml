@@ -8,7 +8,7 @@ services:
       POSTGRES_PASSWORD: stoploss
       POSTGRES_DB: stoploss
     ports:
-      - "5432:5432"
+      - "5435:5432"
     volumes:
       - stoploss-db-data:/var/lib/postgresql/data
     healthcheck:

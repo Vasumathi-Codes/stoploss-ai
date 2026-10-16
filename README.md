@@ -13,7 +13,7 @@ Requires Node.js 20+ and Docker (for PostgreSQL).
 ```bash
 npm install            # also generates the Prisma client
 cp .env.example .env   # local-only credentials matching docker-compose.yml
-npm run db:up          # start PostgreSQL 17 in Docker (port 5432)
+npm run db:up          # start PostgreSQL 17 in Docker (port 5435)
 npm run db:deploy      # apply migrations
 npm run db:seed        # load 3 fictional sample cases + official resources
 npm run dev            # http://localhost:3000

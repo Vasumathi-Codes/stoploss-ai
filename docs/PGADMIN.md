@@ -5,7 +5,7 @@
 ```bash
 cd stoploss-ai
 npm run db:up        # starts the stoploss-db container
-docker ps            # stoploss-db should show "healthy" and 0.0.0.0:5432->5432
+docker ps            # stoploss-db should show "healthy" and 0.0.0.0:5435->5432
 ```
 
 ## 2. Connection details
@@ -15,7 +15,7 @@ From `docker-compose.yml` / `.env` (local development only):
 | Field    | Value       |
 | -------- | ----------- |
 | Host     | `localhost` |
-| Port     | `5432`      |
+| Port     | `5435`      |
 | Database | `stoploss`  |
 | Username | `stoploss`  |
 | Password | `stoploss`  |
@@ -26,7 +26,7 @@ From `docker-compose.yml` / `.env` (local development only):
 2. **General** tab → Name: `STOPLOSS AI (local)`
 3. **Connection** tab:
    - Host name/address: `localhost`
-   - Port: `5432`
+   - Port: `5435`
    - Maintenance database: `stoploss`
    - Username: `stoploss`
    - Password: `stoploss` (tick **Save password**)
@@ -50,13 +50,13 @@ Column names are camelCase, so quote them in SQL: `"incidentId"`, `"createdAt"`.
 
 ## Troubleshooting
 
-| Problem                        | Fix                                                                                                                                                                         |
-| ------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Connection refused             | Container isn't running: `npm run db:up`                                                                                                                                    |
-| Password authentication failed | Another Postgres is using port 5432. Stop it, or change the port mapping in `docker-compose.yml` to `"5433:5432"` and use port `5433` (update `DATABASE_URL` in `.env` too) |
-| pgAdmin itself runs in Docker  | Use host `host.docker.internal` instead of `localhost`                                                                                                                      |
-| Tables missing                 | Run `npm run db:deploy` then `npm run db:seed`                                                                                                                              |
-| Data looks stale               | Right-click the table → **Refresh**                                                                                                                                         |
+| Problem                        | Fix                                                                                                                                                                                            |
+| ------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Connection refused             | Container isn't running: `npm run db:up`                                                                                                                                                       |
+| Password authentication failed | Another Postgres is using port 5435. Stop it, or change the host side of the port mapping in `docker-compose.yml` (e.g. `"5436:5432"`) and use that port (update `DATABASE_URL` in `.env` too) |
+| pgAdmin itself runs in Docker  | Use host `host.docker.internal` instead of `localhost`                                                                                                                                         |
+| Tables missing                 | Run `npm run db:deploy` then `npm run db:seed`                                                                                                                                                 |
+| Data looks stale               | Right-click the table → **Refresh**                                                                                                                                                            |
 
 ## Notes
 
