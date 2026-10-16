@@ -1,30 +1,29 @@
 "use client"
 
-import { FlaskConical } from "lucide-react"
+import { FlaskConical, Sparkles } from "lucide-react"
 
 import { AGENT_ICONS } from "@/components/agents/agent-card"
 import { FindingsList } from "@/components/agents/findings-list"
 import { RunAnalysisButton } from "@/components/agents/run-analysis-button"
 import { AgentStatusBadge, FindingSourceBadge } from "@/components/shared/status-badges"
 import { Card } from "@/components/ui/card"
-import { useAgentState, useFindings } from "@/features/agents/hooks"
+import { useAgentState, useAnalysisEngine, useFindings } from "@/features/agents/hooks"
 import { AGENT_ORDER, AGENTS } from "@/lib/config/agents"
 import { FINDING_SOURCES } from "@/lib/config/taxonomy"
 import type { AgentId, FindingSource, Incident } from "@/types"
 
 export function CaseAnalysisTab({ incident }: { incident: Incident }) {
   const agents = useAgentState(incident.id)
+  const { engine, copy } = useAnalysisEngine(incident.id)
+  const EngineIcon = engine === "foundry" ? Sparkles : FlaskConical
   return (
     <div className="space-y-5">
       <div className="flex flex-col gap-4 rounded-xl border bg-card p-4 md:flex-row md:items-center md:justify-between">
         <div className="flex items-start gap-3">
-          <FlaskConical aria-hidden className="mt-0.5 size-5 shrink-0 text-primary" />
+          <EngineIcon aria-hidden className="mt-0.5 size-5 shrink-0 text-primary" />
           <div className="text-sm">
-            <p className="font-medium">Simulated Demo Analysis</p>
-            <p className="text-muted-foreground">
-              Generated on the server from fixed templates and your inputs. No AI model, Microsoft Foundry or external check is
-              involved.
-            </p>
+            <p className="font-medium">{copy.title}</p>
+            <p className="text-muted-foreground">{copy.disclaimer}</p>
           </div>
         </div>
         <RunAnalysisButton incident={incident} />
@@ -69,6 +68,7 @@ function AgentFindingsCard({
   task?: string
 }) {
   const findings = useFindings(incidentId, agentId)
+  const { copy } = useAnalysisEngine(incidentId)
   const Icon = AGENT_ICONS[agentId]
   return (
     <Card className="gap-4 p-5">
@@ -86,7 +86,7 @@ function AgentFindingsCard({
       </div>
       <FindingsList
         findings={findings}
-        emptyMessage={status === "analyzing" ? "Working on it…" : "No findings yet. Run the simulated analysis to generate them."}
+        emptyMessage={status === "analyzing" ? "Working on it…" : `No findings yet. ${copy.emptyPrompt} to generate them.`}
       />
     </Card>
   )

@@ -115,6 +115,7 @@ export function PriorityBadge({ action, className }: { action: Pick<ActionItem, 
 
 const SOURCE_META: Record<FindingSource, { tone: Tone; icon: LucideIcon }> = {
   mock_analysis: { tone: "primary", icon: FlaskConical },
+  ai_analysis: { tone: "primary", icon: Sparkles },
   user_supplied: { tone: "info", icon: User },
   verified_guidance: { tone: "success", icon: ShieldCheck },
   unverified_assumption: { tone: "warning", icon: AlertTriangle },

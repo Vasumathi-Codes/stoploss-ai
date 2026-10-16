@@ -19,7 +19,7 @@ STOPLOSS AI is a guidance tool. It never promises recovery, never contacts a ban
 
 ## AI Emergency Team
 
-Four specialised agents work on each case in sequence:
+Four specialised agents work on each case: Incident first, Containment and Evidence in parallel, then the Recovery Coordinator.
 
 | Agent                | Role                                                                   |
 | -------------------- | ---------------------------------------------------------------------- |
@@ -28,10 +28,9 @@ Four specialised agents work on each case in sequence:
 | Evidence Agent       | Lists the evidence collected and points out gaps                       |
 | Recovery Coordinator | Prepares a complaint checklist and tracks progress                     |
 
-Every finding is labelled with its source: mock analysis, user-supplied, guidance, or unverified assumption.
+Every finding is labelled with its source: AI analysis, mock analysis, user-supplied, guidance, or unverified assumption.
 
-**Today:** agents run deterministic templates on the server.
-**Next:** Microsoft Foundry agents replace the templates in `src/server/analysis.ts`.
+**Today:** agents run on a Microsoft Foundry model when configured (`src/server/foundry`), with deterministic templates as the fallback.
 
 ## Features
 
@@ -45,15 +44,15 @@ Every finding is labelled with its source: mock analysis, user-supplied, guidanc
 
 ## Tech Stack
 
-| Layer     | Choice                                                 |
-| --------- | ------------------------------------------------------ |
-| Frontend  | Next.js 16 (App Router), React 19, TypeScript          |
-| UI        | Tailwind CSS 4, shadcn/ui, Lucide icons, Sonner toasts |
-| State     | Zustand (client cache of server data)                  |
-| Forms     | React Hook Form + Zod                                  |
-| Backend   | Next.js route handlers (`src/app/api`)                 |
-| Database  | PostgreSQL 17 (Docker) via Prisma 7                    |
-| AI (next) | Microsoft Foundry                                      |
+| Layer    | Choice                                                 |
+| -------- | ------------------------------------------------------ |
+| Frontend | Next.js 16 (App Router), React 19, TypeScript          |
+| UI       | Tailwind CSS 4, shadcn/ui, Lucide icons, Sonner toasts |
+| State    | Zustand (client cache of server data)                  |
+| Forms    | React Hook Form + Zod                                  |
+| Backend  | Next.js route handlers (`src/app/api`)                 |
+| Database | PostgreSQL 17 (Docker) via Prisma 7                    |
+| AI       | Microsoft Foundry (OpenAI v1 endpoint, Responses API)  |
 
 ## Architecture
 
@@ -93,8 +92,7 @@ npm run dev   # http://localhost:3000
 
 | Done                            | Next                                      |
 | ------------------------------- | ----------------------------------------- |
-| Full frontend (all screens)     | Microsoft Foundry agent integration       |
-| Backend API + PostgreSQL schema | Authentication                            |
-| Server-side simulated agents    | Secure evidence file storage (Azure Blob) |
-| Seed data and demo reset        | Verify official resource details          |
-|                                 | Deploy to Azure (Container Apps)          |
+| Full frontend (all screens)     | Authentication                            |
+| Backend API + PostgreSQL schema | Secure evidence file storage (Azure Blob) |
+| Microsoft Foundry agents        | Verify official resource details          |
+| Template fallback, seed, reset  | Deploy to Azure (Container Apps)          |

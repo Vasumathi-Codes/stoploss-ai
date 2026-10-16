@@ -108,7 +108,7 @@ export function CaseOverviewTab({
                 </Button>
               </>
             ) : actions.length === 0 ? (
-              <p className="text-sm text-muted-foreground">No action plan yet. Run the simulated analysis to generate one.</p>
+              <p className="text-sm text-muted-foreground">No action plan yet. Run the agent analysis to generate one.</p>
             ) : (
               <p className="text-sm text-muted-foreground">
                 All steps are marked complete. Keep any reference numbers in your notes.
@@ -140,7 +140,7 @@ export function CaseOverviewTab({
               })}
             </ul>
             <Button size="sm" variant="ghost" className="mt-3 -ml-2" onClick={() => onNavigate("analysis")}>
-              View simulated analysis
+              View agent analysis
               <ArrowRight aria-hidden />
             </Button>
           </CardContent>

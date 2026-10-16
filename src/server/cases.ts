@@ -8,6 +8,7 @@ import type { CreateIncidentBody, EvidenceMeta } from "@/lib/validation/api"
 import { refreshAgent, recoverStaleRuns, resetAgentStates } from "@/server/analysis"
 import { addEvents } from "@/server/context"
 import { type DbTx, prisma } from "@/server/db"
+import { getFoundryConfig } from "@/server/foundry/client"
 import { notFound } from "@/server/http"
 import {
   toAction,
@@ -30,21 +31,30 @@ import type { ActionStatus, CaseStatus, EvidenceKind, UserProfile } from "@/type
 export async function getSnapshot(userId: string): Promise<AppSnapshot> {
   await recoverStaleRuns(userId)
   const mine = { incident: { userId } }
-  const [user, incidents, evidence, actions, findings, timeline, agentStates, resources, running] = await Promise.all([
-    prisma.user.findUniqueOrThrow({ where: { id: userId } }),
-    prisma.incident.findMany({
-      where: { userId },
-      include: { notes: { orderBy: { createdAt: "asc" } } },
-      orderBy: { reportedAt: "desc" },
-    }),
-    prisma.evidenceItem.findMany({ where: mine, orderBy: { addedAt: "desc" } }),
-    prisma.actionItem.findMany({ where: mine, orderBy: { createdAt: "asc" } }),
-    prisma.agentFinding.findMany({ where: mine, orderBy: [{ agentId: "asc" }, { position: "asc" }] }),
-    prisma.timelineEvent.findMany({ where: mine, orderBy: { at: "desc" }, take: 500 }),
-    prisma.agentState.findMany({ where: mine }),
-    prisma.officialResource.findMany({ orderBy: { createdAt: "asc" } }),
-    prisma.analysisRun.findMany({ where: { ...mine, status: "running" }, select: { incidentId: true } }),
-  ])
+  const [user, incidents, evidence, actions, findings, timeline, agentStates, resources, running, latestRuns] = await Promise.all(
+    [
+      prisma.user.findUniqueOrThrow({ where: { id: userId } }),
+      prisma.incident.findMany({
+        where: { userId },
+        include: { notes: { orderBy: { createdAt: "asc" } } },
+        orderBy: { reportedAt: "desc" },
+      }),
+      prisma.evidenceItem.findMany({ where: mine, orderBy: { addedAt: "desc" } }),
+      prisma.actionItem.findMany({ where: mine, orderBy: { createdAt: "asc" } }),
+      prisma.agentFinding.findMany({ where: mine, orderBy: [{ agentId: "asc" }, { position: "asc" }] }),
+      prisma.timelineEvent.findMany({ where: mine, orderBy: { at: "desc" }, take: 500 }),
+      prisma.agentState.findMany({ where: mine }),
+      prisma.officialResource.findMany({ orderBy: { createdAt: "asc" } }),
+      prisma.analysisRun.findMany({ where: { ...mine, status: "running" }, select: { incidentId: true } }),
+      prisma.analysisRun.findMany({
+        where: mine,
+        orderBy: { startedAt: "desc" },
+        distinct: ["incidentId"],
+        select: { incidentId: true, engine: true },
+      }),
+    ],
+  )
+  const foundry = getFoundryConfig()
   return {
     profile: toProfile(user),
     incidents: incidents.map(toIncident),
@@ -56,6 +66,8 @@ export async function getSnapshot(userId: string): Promise<AppSnapshot> {
     resources: resources.map(toResource),
     readEventIds: timeline.filter((e) => e.readAt).map((e) => e.id),
     runningIncidentIds: [...new Set(running.map((r) => r.incidentId))],
+    analysis: foundry ? { engine: "foundry", model: foundry.deployment } : { engine: "mock" },
+    incidentEngines: Object.fromEntries(latestRuns.map((r) => [r.incidentId, r.engine])),
   }
 }
 

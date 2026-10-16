@@ -193,7 +193,7 @@ export function DashboardView() {
                 compact
                 emptyMessage={
                   currentActions.length === 0
-                    ? "No action plan yet. Run the simulated analysis below to generate one."
+                    ? "No action plan yet. Run the agent analysis below to generate one."
                     : "All steps for this case are marked complete."
                 }
               />
