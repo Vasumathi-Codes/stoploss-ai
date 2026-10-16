@@ -3,10 +3,10 @@ import { z } from "zod"
 import { CURRENCIES, FRAUD_CATEGORY_IDS } from "@/lib/config/taxonomy"
 
 /** Catches the most common ways people paste secrets into free text. */
-const SECRET_PATTERN = /\b(otp|pin|upi\s*pin|password|passcode|cvv|mpin)\b\s*(is|was|:|-|=)?\s*[\w@#$%]{3,}/i
-const CARD_NUMBER_PATTERN = /(?:\d[ -]?){13,19}/
+export const SECRET_PATTERN = /\b(otp|pin|upi\s*pin|password|passcode|cvv|mpin)\b\s*(is|was|:|-|=)?\s*[\w@#$%]{3,}/i
+export const CARD_NUMBER_PATTERN = /(?:\d[ -]?){13,19}/
 
-const noSecrets = (value: string) => !SECRET_PATTERN.test(value)
+export const noSecrets = (value: string) => !SECRET_PATTERN.test(value)
 
 export const incidentDetailsSchema = z.object({
   category: z.enum(FRAUD_CATEGORY_IDS as [string, ...string[]], { error: "Choose the type that fits best" }),

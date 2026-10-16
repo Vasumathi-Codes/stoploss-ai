@@ -7,7 +7,7 @@ export default function AppError({ reset }: { error: Error & { digest?: string }
   return (
     <ErrorState
       title="Something went wrong on this page"
-      description="Your demo data is still in memory. Try again, or go back to the dashboard."
+      description="Your saved cases are safe. Try again, or go back to the dashboard."
       action={
         <div className="flex gap-2">
           <Button onClick={reset}>Try again</Button>

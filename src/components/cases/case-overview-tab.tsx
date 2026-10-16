@@ -172,8 +172,8 @@ function TransactionRefDialog({
 }) {
   const form = useForm<{ ref: string }>({ resolver: zodResolver(transactionRefSchema), defaultValues: { ref: "" } })
   const error = form.formState.errors.ref?.message
-  const submit = form.handleSubmit(({ ref }) => {
-    caseService.setTransactionRef(incident.id, ref.trim())
+  const submit = form.handleSubmit(async ({ ref }) => {
+    if (!(await caseService.setTransactionRef(incident.id, ref.trim()))) return
     toast.success("Transaction reference added", { description: "The Evidence Agent's checklist has been updated." })
     form.reset()
     onOpenChange(false)

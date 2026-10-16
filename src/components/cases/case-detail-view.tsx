@@ -67,7 +67,7 @@ export function CaseDetailView({ id }: { id: string }) {
       <EmptyState
         icon={FileQuestion}
         title="We couldn't find that case"
-        description="It may have been created in a previous session. Demo cases live only in this tab's memory, so refreshing the page restores the sample data."
+        description="It may have been deleted, or the demo data may have been reset."
         action={
           <Button asChild>
             <Link href="/cases">
@@ -86,8 +86,8 @@ export function CaseDetailView({ id }: { id: string }) {
   const prev = incidents[index - 1]
   const next = incidents[index + 1]
 
-  const statusChange = (status: CaseStatus) => {
-    caseService.updateStatus(incident.id, status)
+  const statusChange = async (status: CaseStatus) => {
+    if (!(await caseService.updateStatus(incident.id, status))) return
     toast.success("Case status updated", { description: `${incident.reference} is now “${CASE_STATUSES[status].label}”.` })
   }
 
@@ -226,7 +226,10 @@ export function CaseDetailView({ id }: { id: string }) {
 
         <TabsContent value="evidence" className="space-y-4">
           <div className="flex flex-wrap items-center justify-between gap-3">
-            <p className="text-sm text-muted-foreground">Files stay in this browser tab. They are not uploaded or analysed.</p>
+            <p className="text-sm text-muted-foreground">
+              Files stay on your device — only their names, types and sizes are saved. Previews are available in the tab where you
+              added them.
+            </p>
             <AddEvidenceDialog incidentId={incident.id} triggerLabel="Add evidence" />
           </div>
           {evidence.length === 0 ? (

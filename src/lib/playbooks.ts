@@ -1,9 +1,9 @@
 /**
- * Deterministic templates used by the mock agent simulation.
+ * Deterministic templates used by the simulated agent analysis (server side).
  *
  * Everything here is fixed, general guidance selected by simple rules — it is NOT
  * the output of an AI model. When Microsoft Foundry is integrated, the real
- * agents replace `buildActionItems` / `buildFindings` behind the AgentService.
+ * agents replace `buildActionItems` / `buildFindings` in `src/server/analysis.ts`.
  */
 import { AGENTS } from "@/lib/config/agents"
 import { getOfficialResource } from "@/lib/config/official-resources"

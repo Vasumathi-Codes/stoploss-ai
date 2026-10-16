@@ -16,7 +16,7 @@ import {
 import { useTimeline } from "@/features/agents/hooks"
 import { useIncidents } from "@/features/cases/hooks"
 import { demoService } from "@/lib/services"
-import { useDemoStore } from "@/lib/store/demo-store"
+import { useAppStore } from "@/lib/store/app-store"
 import { useUiPreferences } from "@/lib/store/ui-preferences"
 import { cn } from "@/lib/utils"
 import { formatDateTime } from "@/lib/utils/format"
@@ -26,7 +26,7 @@ export function NotificationsMenu() {
   const router = useRouter()
   const showAgent = useUiPreferences((s) => s.notifyAgentUpdates)
   const timeline = useTimeline(undefined, 40)
-  const readIds = useDemoStore((s) => s.readEventIds)
+  const readIds = useAppStore((s) => s.readEventIds)
   const incidents = useIncidents()
   const refs = useMemo(() => new Map(incidents.map((i) => [i.id, i.reference])), [incidents])
 
@@ -57,7 +57,7 @@ export function NotificationsMenu() {
               size="xs"
               onClick={(e) => {
                 e.preventDefault()
-                demoService.markEventsRead(unread.map((u) => u.id))
+                void demoService.markEventsRead(unread.map((u) => u.id))
               }}
             >
               <CheckCheck aria-hidden />
@@ -76,7 +76,7 @@ export function NotificationsMenu() {
                 key={e.id}
                 className="items-start gap-2.5 py-2"
                 onSelect={() => {
-                  demoService.markEventsRead([e.id])
+                  void demoService.markEventsRead([e.id])
                   router.push(`/cases/${e.incidentId}`)
                 }}
               >

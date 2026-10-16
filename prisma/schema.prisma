@@ -1,0 +1,424 @@
+// STOPLOSS AI — PostgreSQL schema.
+//
+// Enum values deliberately match the string unions in the frontend's
+// `src/types/index.ts`, so rows map to UI types without translation.
+//
+// Deliberately absent: passwords, UPI PINs, OTPs, CVVs, full card numbers and
+// banking logins. Evidence rows hold metadata only; file bytes are never stored
+// here (a future blob store would be referenced through `storageKey`).
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+/**
+ * ------------------------------------------------------------------
+ */
+/**
+ * Enums
+ */
+/**
+ * ------------------------------------------------------------------
+ */
+
+enum FraudCategory {
+  upi_payment
+  phishing
+  banking_card
+  impersonation
+  account_takeover
+  investment
+  shopping
+  other
+}
+
+enum CaseStatus {
+  draft
+  reported
+  analysis_in_progress
+  action_plan_ready
+  user_action_required
+  reporting_in_progress
+  resolved
+  archived
+}
+
+enum TriState {
+  yes
+  no
+  unsure
+}
+
+enum Currency {
+  INR
+  USD
+  EUR
+  GBP
+  AED
+}
+
+enum EvidenceKind {
+  image
+  pdf
+  text
+  other
+}
+
+enum AgentId {
+  incident
+  containment
+  evidence
+  recovery
+}
+
+enum AgentStatus {
+  not_started
+  analyzing
+  awaiting_information
+  completed
+  needs_review
+}
+
+enum FindingSource {
+  mock_analysis
+  user_supplied
+  verified_guidance
+  unverified_assumption
+}
+
+enum Confidence {
+  low
+  medium
+  high
+}
+
+enum AnalysisRunStatus {
+  running
+  completed
+  cancelled
+  failed
+}
+
+/// Which implementation produced an analysis run.
+enum AnalysisEngine {
+  mock
+  foundry
+}
+
+enum ActionPriority {
+  urgent
+  high
+  normal
+}
+
+enum ActionStatus {
+  pending
+  in_progress
+  completed
+}
+
+/// suggested: proposed by STOPLOSS AI, the user does it.
+/// external: a process outside the app (bank, police) the app cannot verify.
+enum ActionOrigin {
+  suggested
+  external
+}
+
+enum TimelineActor {
+  user
+  agent
+  system
+}
+
+enum TimelineTone {
+  neutral
+  success
+  warning
+  info
+}
+
+enum ResourceKind {
+  portal
+  helpline
+  provider
+  regulator
+  telecom
+}
+
+/**
+ * ------------------------------------------------------------------
+ */
+/**
+ * People
+ */
+/**
+ * ------------------------------------------------------------------
+ */
+
+model User {
+  id                String   @id @default(uuid()) @db.Uuid
+  email             String   @unique
+  displayName       String
+  preferredLanguage String   @default("English")
+  city              String?
+  /// Masked number for display only, e.g. "+91 ••••• ••210". Never a full number.
+  phoneHint         String?
+  createdAt         DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt         DateTime @updatedAt @db.Timestamptz(3)
+
+  incidents Incident[]
+
+  @@map("users")
+}
+
+/**
+ * ------------------------------------------------------------------
+ */
+/**
+ * Cases
+ */
+/**
+ * ------------------------------------------------------------------
+ */
+
+model Incident {
+  id               String        @id @default(uuid()) @db.Uuid
+  /// Human-readable case reference, e.g. SL-2610-4821.
+  reference        String        @unique @db.VarChar(20)
+  userId           String        @db.Uuid
+  title            String        @db.VarChar(120)
+  category         FraudCategory
+  description      String        @db.VarChar(2000)
+  amount           Decimal       @db.Decimal(14, 2)
+  currency         Currency      @default(INR)
+  occurredAt       DateTime      @db.Timestamptz(3)
+  reportedAt       DateTime      @default(now()) @db.Timestamptz(3)
+  updatedAt        DateTime      @updatedAt @db.Timestamptz(3)
+  paymentMethod    String        @db.VarChar(60)
+  /// UTR / RRN / UPI ref. Validated upstream to reject card numbers and secrets.
+  transactionRef   String?       @db.VarChar(60)
+  hasAccountAccess TriState
+  ongoing          TriState?
+  status           CaseStatus    @default(reported)
+  /// True for clearly fictional sample rows created by the seed script.
+  isSample         Boolean       @default(false)
+
+  user         User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  notes        CaseNote[]
+  evidence     EvidenceItem[]
+  actions      ActionItem[]
+  agentStates  AgentState[]
+  analysisRuns AnalysisRun[]
+  findings     AgentFinding[]
+  timeline     TimelineEvent[]
+
+  @@index([userId, status])
+  @@index([userId, updatedAt(sort: Desc)])
+  @@map("incidents")
+}
+
+model CaseNote {
+  id         String   @id @default(uuid()) @db.Uuid
+  incidentId String   @db.Uuid
+  body       String   @db.VarChar(1000)
+  createdAt  DateTime @default(now()) @db.Timestamptz(3)
+
+  incident Incident @relation(fields: [incidentId], references: [id], onDelete: Cascade)
+
+  @@index([incidentId, createdAt])
+  @@map("case_notes")
+}
+
+/// Metadata about a file the user added. File contents stay on the user's device.
+model EvidenceItem {
+  id          String       @id @default(uuid()) @db.Uuid
+  incidentId  String       @db.Uuid
+  name        String       @db.VarChar(255)
+  kind        EvidenceKind
+  mimeType    String       @db.VarChar(127)
+  /// Size in bytes.
+  size        Int
+  description String?      @db.VarChar(500)
+  /// Short excerpt of a .txt file, if the user chose to share one.
+  textPreview String?      @db.VarChar(2000)
+  /// Reserved for a future blob store (e.g. Azure Blob). Null = file not uploaded.
+  storageKey  String?
+  sha256      String?      @db.Char(64)
+  isSample    Boolean      @default(false)
+  addedAt     DateTime     @default(now()) @db.Timestamptz(3)
+
+  incident Incident @relation(fields: [incidentId], references: [id], onDelete: Cascade)
+
+  @@index([incidentId, addedAt(sort: Desc)])
+  @@map("evidence_items")
+}
+
+/**
+ * ------------------------------------------------------------------
+ */
+/**
+ * Action plan
+ */
+/**
+ * ------------------------------------------------------------------
+ */
+
+model ActionItem {
+  id           String         @id @default(uuid()) @db.Uuid
+  incidentId   String         @db.Uuid
+  /// Stable playbook key so reruns don't duplicate actions.
+  key          String         @db.VarChar(60)
+  title        String
+  explanation  String
+  priority     ActionPriority
+  status       ActionStatus   @default(pending)
+  origin       ActionOrigin
+  timing       String
+  instructions String[]
+  requiredInfo String[]
+  /// Keys of other actions in the same plan that should come first.
+  dependsOn    String[]
+  resourceId   String?
+  createdAt    DateTime       @default(now()) @db.Timestamptz(3)
+  updatedAt    DateTime       @updatedAt @db.Timestamptz(3)
+  completedAt  DateTime?      @db.Timestamptz(3)
+
+  incident Incident          @relation(fields: [incidentId], references: [id], onDelete: Cascade)
+  resource OfficialResource? @relation(fields: [resourceId], references: [id], onDelete: SetNull)
+
+  @@unique([incidentId, key])
+  @@index([incidentId, status])
+  @@map("action_items")
+}
+
+/**
+ * ------------------------------------------------------------------
+ */
+/**
+ * Agents
+ */
+/**
+ * ------------------------------------------------------------------
+ */
+
+/// One analysis pass over an incident (all four agents). Kept as history.
+model AnalysisRun {
+  id          String            @id @default(uuid()) @db.Uuid
+  incidentId  String            @db.Uuid
+  engine      AnalysisEngine    @default(mock)
+  status      AnalysisRunStatus @default(running)
+  startedAt   DateTime          @default(now()) @db.Timestamptz(3)
+  completedAt DateTime?         @db.Timestamptz(3)
+  error       String?
+
+  incident Incident       @relation(fields: [incidentId], references: [id], onDelete: Cascade)
+  findings AgentFinding[]
+
+  @@index([incidentId, startedAt(sort: Desc)])
+  @@map("analysis_runs")
+}
+
+/// Current status of each agent for an incident (exactly one row per agent).
+model AgentState {
+  incidentId  String      @db.Uuid
+  agentId     AgentId
+  status      AgentStatus @default(not_started)
+  currentTask String
+  startedAt   DateTime?   @db.Timestamptz(3)
+  completedAt DateTime?   @db.Timestamptz(3)
+  updatedAt   DateTime    @updatedAt @db.Timestamptz(3)
+
+  incident Incident @relation(fields: [incidentId], references: [id], onDelete: Cascade)
+
+  @@id([incidentId, agentId])
+  @@map("agent_states")
+}
+
+model AgentFinding {
+  id         String        @id @default(uuid()) @db.Uuid
+  incidentId String        @db.Uuid
+  runId      String?       @db.Uuid
+  agentId    AgentId
+  title      String
+  detail     String
+  /// Where the content comes from — always shown next to the finding.
+  source     FindingSource
+  /// Optional list content (checklists, missing items, inventory).
+  items      String[]
+  confidence Confidence?
+  /// Display order within one agent's output.
+  position   Int           @default(0)
+  createdAt  DateTime      @default(now()) @db.Timestamptz(3)
+
+  incident Incident     @relation(fields: [incidentId], references: [id], onDelete: Cascade)
+  run      AnalysisRun? @relation(fields: [runId], references: [id], onDelete: SetNull)
+
+  @@index([incidentId, agentId, position])
+  @@map("agent_findings")
+}
+
+/**
+ * ------------------------------------------------------------------
+ */
+/**
+ * Timeline / notifications
+ */
+/**
+ * ------------------------------------------------------------------
+ */
+
+model TimelineEvent {
+  id         String        @id @default(uuid()) @db.Uuid
+  incidentId String        @db.Uuid
+  at         DateTime      @default(now()) @db.Timestamptz(3)
+  actor      TimelineActor
+  agentId    AgentId?
+  title      String
+  detail     String?
+  tone       TimelineTone  @default(neutral)
+  /// Set when the user dismisses it from the notifications menu.
+  readAt     DateTime?     @db.Timestamptz(3)
+
+  incident Incident @relation(fields: [incidentId], references: [id], onDelete: Cascade)
+
+  @@index([incidentId, at(sort: Desc)])
+  @@index([at(sort: Desc)])
+  @@map("timeline_events")
+}
+
+/**
+ * ------------------------------------------------------------------
+ */
+/**
+ * Reference data
+ */
+/**
+ * ------------------------------------------------------------------
+ */
+
+/// Official reporting and support channels. Reference data, not user data.
+model OfficialResource {
+  /// Stable slug, e.g. "ncrp", "helpline-1930".
+  id           String       @id @db.VarChar(60)
+  organization String
+  name         String
+  purpose      String
+  relevance    String
+  kind         ResourceKind
+  url          String?
+  phone        String?      @db.VarChar(30)
+  note         String?
+  /// Null = not yet verified. Never set without actually checking the source.
+  verifiedAt   DateTime?    @db.Timestamptz(3)
+  createdAt    DateTime     @default(now()) @db.Timestamptz(3)
+  updatedAt    DateTime     @updatedAt @db.Timestamptz(3)
+
+  actions ActionItem[]
+
+  @@map("official_resources")
+}

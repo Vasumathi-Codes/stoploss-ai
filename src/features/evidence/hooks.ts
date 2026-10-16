@@ -2,10 +2,10 @@
 
 import { useMemo } from "react"
 
-import { useDemoStore } from "@/lib/store/demo-store"
+import { useAppStore } from "@/lib/store/app-store"
 
 export function useEvidence(incidentId?: string) {
-  const evidence = useDemoStore((s) => s.evidence)
+  const evidence = useAppStore((s) => s.evidence)
   return useMemo(
     () =>
       (incidentId ? evidence.filter((e) => e.incidentId === incidentId) : evidence)

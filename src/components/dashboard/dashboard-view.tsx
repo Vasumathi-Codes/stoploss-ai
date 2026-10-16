@@ -96,7 +96,7 @@ export function DashboardView() {
         <StatCard
           label="Evidence Items Collected"
           value={evidence.length}
-          hint="Stored locally in this demo"
+          hint="File details saved with your cases"
           icon={Paperclip}
           tone="info"
         />
