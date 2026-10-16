@@ -98,7 +98,7 @@ export function SettingsView() {
             <PrefSwitch
               id="pref-agent"
               label="Agent updates"
-              description="Toasts and bell notifications when a simulated analysis starts or finishes."
+              description="Toasts and bell notifications when an agent analysis starts or finishes."
               checked={prefs.notifyAgentUpdates}
               onChange={(v) => prefs.setPreference("notifyAgentUpdates", v)}
             />
@@ -178,7 +178,7 @@ export function SettingsView() {
           <>
             <p>
               All cases, notes, task progress and evidence records you added will be permanently deleted from the database.
-              Running simulations are stopped.
+              Running analyses are stopped.
             </p>
             <p>The sample cases will be restored exactly as they were at launch.</p>
           </>

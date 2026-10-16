@@ -34,3 +34,16 @@ export const AGENTS: Record<AgentId, Agent> = {
 }
 
 export const AGENT_ORDER: AgentId[] = ["incident", "containment", "evidence", "recovery"]
+
+/**
+ * Agent dependency order. Agents in the same stage only depend on earlier
+ * stages, so they run in parallel:
+ *   Incident → (Containment ‖ Evidence) → Recovery Coordinator
+ */
+export const AGENT_STAGES: AgentId[][] = [["incident"], ["containment", "evidence"], ["recovery"]]
+
+/** The agents whose output an agent receives (everything from earlier stages). */
+export function agentInputs(agentId: AgentId): AgentId[] {
+  const stage = AGENT_STAGES.findIndex((s) => s.includes(agentId))
+  return AGENT_STAGES.slice(0, stage).flat()
+}

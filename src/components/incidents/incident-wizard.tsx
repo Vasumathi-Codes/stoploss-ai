@@ -15,12 +15,13 @@ import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Label } from "@/components/ui/label"
+import { useAnalysisEngine } from "@/features/agents/hooks"
 import { useLocalFiles } from "@/features/evidence/use-local-files"
 import { FRAUD_CATEGORIES } from "@/lib/config/taxonomy"
 import { actionPlanService, incidentService } from "@/lib/services"
 import { cn } from "@/lib/utils"
 import { incidentDetailsSchema, type IncidentFormValues, STEP_ONE_FIELDS } from "@/lib/validation/incident"
-import type { Currency, FraudCategory, Incident, TriState } from "@/types"
+import type { AnalysisEngine, Currency, FraudCategory, Incident, TriState } from "@/types"
 
 const STEPS = [
   { title: "What happened", description: "The essentials for an initial plan" },
@@ -50,6 +51,7 @@ export function IncidentWizard() {
   const [submitting, setSubmitting] = useState(false)
   const headingRef = useRef<HTMLHeadingElement>(null)
   const local = useLocalFiles()
+  const { engine, copy } = useAnalysisEngine()
 
   const form = useForm<IncidentFormValues>({
     resolver: zodResolver(incidentDetailsSchema),
@@ -102,7 +104,7 @@ export function IncidentWizard() {
           local.release(),
         )
         setCreated(incident)
-        toast.success(`Demo case ${incident.reference} created`, { description: "Simulated analysis has started." })
+        toast.success(`Demo case ${incident.reference} created`, { description: `${copy.started}.` })
         goTo(3)
       } catch {
         toast.error("We couldn't create the demo case", { description: "Nothing was lost — please try again." })
@@ -201,6 +203,13 @@ export function IncidentWizard() {
                 Submitting saves a <span className="font-medium text-foreground">demo case</span> to the STOPLOSS AI database.
                 Only file names, types and sizes are saved — the files stay on your device. It does not contact your bank or file
                 an official complaint.
+                {engine === "foundry" && (
+                  <>
+                    {" "}
+                    The AI agents will send these case details — not your files — to a{" "}
+                    <span className="font-medium text-foreground">Microsoft Foundry</span> model for analysis.
+                  </>
+                )}
               </p>
             </div>
             <div className="space-y-2">
@@ -229,7 +238,7 @@ export function IncidentWizard() {
           </div>
         )}
 
-        {step === 3 && created && <CreatedPanel incident={created} />}
+        {step === 3 && created && <CreatedPanel incident={created} engine={engine} />}
 
         {step < 3 && (
           <div className="flex flex-col-reverse gap-2 border-t pt-5 sm:flex-row sm:justify-between">
@@ -261,7 +270,7 @@ export function IncidentWizard() {
   )
 }
 
-function CreatedPanel({ incident }: { incident: Incident }) {
+function CreatedPanel({ incident, engine }: { incident: Incident; engine: AnalysisEngine }) {
   const firstAction = actionPlanService.suggestFirstAction(incident)
   return (
     <div className="space-y-6">
@@ -281,8 +290,9 @@ function CreatedPanel({ incident }: { incident: Incident }) {
         <p className="mt-1 text-sm text-muted-foreground">{firstAction?.explanation}</p>
       </div>
       <p className="text-sm text-muted-foreground">
-        The four demo agents are now running a simulated analysis of your case. This uses fixed templates, not a real AI model,
-        and nothing has been sent to anyone.
+        {engine === "foundry"
+          ? "The four AI agents are now analysing your case on Microsoft Foundry. Their findings are AI-generated and unverified — review them before acting. Nothing has been sent to your bank or the police."
+          : "The four demo agents are now running a simulated analysis of your case. This uses fixed templates, not a real AI model, and nothing has been sent to anyone."}
       </p>
       <div className="flex flex-col gap-2 sm:flex-row">
         <Button asChild size="lg">
@@ -294,7 +304,7 @@ function CreatedPanel({ incident }: { incident: Incident }) {
         <Button asChild size="lg" variant="outline">
           <Link href={`/agents?case=${incident.id}`}>
             <Bot aria-hidden />
-            Open mock AI analysis
+            {engine === "foundry" ? "Open AI analysis" : "Open mock AI analysis"}
           </Link>
         </Button>
       </div>

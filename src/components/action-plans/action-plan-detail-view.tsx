@@ -75,7 +75,7 @@ export function ActionPlanDetailView({ id }: { id: string }) {
       {actions.length === 0 ? (
         <EmptyState
           title="No plan generated yet"
-          description="The Containment Agent builds the plan during the simulated analysis."
+          description="The Containment Agent builds the plan from the app's configured guidance when the analysis runs."
           action={<RunAnalysisButton incident={incident} size="default" />}
         />
       ) : (

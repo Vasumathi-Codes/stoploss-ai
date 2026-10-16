@@ -264,7 +264,7 @@ export function getMissingInformation({ incident, evidence }: AnalysisContext) {
   return missing
 }
 
-type FindingDraft = Omit<AgentFinding, "id" | "incidentId" | "agentId" | "createdAt">
+export type FindingDraft = Omit<AgentFinding, "id" | "incidentId" | "agentId" | "createdAt">
 
 export function buildFindings(agentId: AgentId, ctx: AnalysisContext): FindingDraft[] {
   const { incident, evidence, actions } = ctx

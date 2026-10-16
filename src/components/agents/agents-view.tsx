@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react"
 import Link from "next/link"
 import { useSearchParams } from "next/navigation"
-import { ArrowRight, Cpu, FlaskConical, Workflow } from "lucide-react"
+import { ArrowRight, Cpu, FlaskConical, Sparkles, Workflow } from "lucide-react"
 
 import { AGENT_ICONS, AgentCard } from "@/components/agents/agent-card"
 import { RunAnalysisButton } from "@/components/agents/run-analysis-button"
@@ -15,14 +15,14 @@ import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { useAgentState, useFindings, useTimeline } from "@/features/agents/hooks"
+import { useAgentState, useAnalysisEngine, useFindings, useTimeline } from "@/features/agents/hooks"
 import { useIncidents } from "@/features/cases/hooks"
-import { AGENT_ORDER, AGENTS } from "@/lib/config/agents"
+import { AGENT_ORDER, AGENTS, agentInputs } from "@/lib/config/agents"
 import { formatTime } from "@/lib/utils/format"
 import type { AgentId, AgentRunState, Incident } from "@/types"
 
 const NEXT_STEP: Record<AgentRunState["status"], string> = {
-  not_started: "Run the simulated analysis",
+  not_started: "Run the analysis",
   analyzing: "Wait for this step to finish",
   awaiting_information: "Add a transaction reference or an evidence file to the case",
   needs_review: "Review the summary and add detail to your description if needed",
@@ -36,6 +36,7 @@ export function AgentsView() {
   const [selectedId, setSelectedId] = useState<string>(incidents.find((i) => i.id === requested)?.id ?? incidents[0]?.id ?? "")
   const incident = incidents.find((i) => i.id === selectedId) ?? incidents[0]
   const state = useAgentState(incident?.id)
+  const { engine, model, copy } = useAnalysisEngine(incident?.id)
   const timeline = useTimeline(incident?.id)
   const agentEvents = useMemo(() => timeline.filter((e) => e.actor !== "user"), [timeline])
 
@@ -47,12 +48,17 @@ export function AgentsView() {
     <div className="space-y-8">
       <PageHeader
         eyebrow={
-          <ToneBadge tone="primary" icon={FlaskConical}>
-            Simulated Demo Analysis
+          <ToneBadge tone="primary" icon={engine === "foundry" ? Sparkles : FlaskConical}>
+            {copy.title}
+            {engine === "foundry" && model ? ` · ${model}` : ""}
           </ToneBadge>
         }
         title="AI Emergency Team"
-        description="Four specialised agents that will one day work together on your case. In this demo they follow a fixed, deterministic script in your browser — no AI model is called."
+        description={
+          engine === "foundry"
+            ? "Four specialised agents work on your case on Microsoft Foundry: the Incident Agent first, then the Containment and Evidence agents side by side, then the Recovery Coordinator, who combines everything. They advise only — they never contact anyone for you."
+            : "Four specialised agents that work together on your case. In this demo they follow a fixed, deterministic script on the server — no AI model is called."
+        }
       />
 
       <Card className="flex flex-col gap-4 p-4 md:flex-row md:items-end md:justify-between md:p-5">
@@ -96,7 +102,7 @@ export function AgentsView() {
         <SectionHeading
           id="orchestration"
           title="Orchestration"
-          description="Each agent hands its output to the next. Status is driven by the case's actual data."
+          description="Incident runs first, Containment and Evidence run side by side on its findings, and the Recovery Coordinator combines all three. Status is driven by the case's actual data."
         />
         <ol className="grid gap-3 lg:grid-cols-4">
           {AGENT_ORDER.map((id, idx) => (
@@ -112,7 +118,7 @@ export function AgentsView() {
             {agentEvents.length ? (
               <ActivityTimeline events={agentEvents} dense />
             ) : (
-              <p className="text-sm text-muted-foreground">No agent activity yet. Run the simulated analysis to start.</p>
+              <p className="text-sm text-muted-foreground">No agent activity yet. {copy.emptyPrompt} to start.</p>
             )}
           </Card>
         </section>
@@ -132,11 +138,12 @@ export function AgentsView() {
             </ol>
             <p className="flex items-center gap-2 pt-2 font-medium">
               <Cpu aria-hidden className="size-4 text-primary" />
-              Later phases
+              Engine
             </p>
             <p className="text-muted-foreground">
-              Real agents are planned to run on Microsoft Foundry behind the same service interface. They are not connected in
-              this demo, and no claim is made that any analysis here was performed by AI.
+              {engine === "foundry"
+                ? "Agents run on a Microsoft Foundry model. AI findings are labelled and unverified, and the action plan itself comes from the app's configured guidance. Sample cases keep their template analysis until you rerun them."
+                : "Microsoft Foundry is not configured, so agents use fixed templates and no analysis here was performed by AI. Set FOUNDRY_ENDPOINT and FOUNDRY_DEPLOYMENT to run them on a model."}
             </p>
           </Card>
         </section>
@@ -191,7 +198,13 @@ function AgentStepRow({
         </div>
         <div>
           <dt className="text-muted-foreground">Supporting input</dt>
-          <dd>{agentId === "incident" ? "Your report" : `Output of ${AGENTS[AGENT_ORDER[index - 1]].name}`}</dd>
+          <dd>
+            {agentInputs(agentId).length === 0
+              ? "Your report"
+              : `Your report + ${agentInputs(agentId)
+                  .map((id) => AGENTS[id].name)
+                  .join(", ")}`}
+          </dd>
         </div>
         {warnings.length > 0 && (
           <div>

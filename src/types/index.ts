@@ -85,7 +85,10 @@ export interface Agent {
 }
 
 /** Where a finding's content comes from — always shown next to it. */
-export type FindingSource = "mock_analysis" | "user_supplied" | "verified_guidance" | "unverified_assumption"
+export type FindingSource = "mock_analysis" | "ai_analysis" | "user_supplied" | "verified_guidance" | "unverified_assumption"
+
+/** Which implementation produced an analysis: fixed templates, or a Microsoft Foundry model. */
+export type AnalysisEngine = "mock" | "foundry"
 
 export interface AgentFinding {
   id: string

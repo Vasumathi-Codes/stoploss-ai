@@ -35,6 +35,8 @@ const EMPTY: AppSnapshot = {
   resources: [],
   readEventIds: [],
   runningIncidentIds: [],
+  analysis: { engine: "mock" },
+  incidentEngines: {},
 }
 
 export const useAppStore = create<AppState>()(() => ({ ...EMPTY, status: "loading", localFiles: {} }))

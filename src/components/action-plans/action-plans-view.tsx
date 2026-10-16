@@ -122,7 +122,7 @@ export function ActionPlansView() {
                     <ProgressIndicator done={progress.done} total={progress.total} />
                     <p className="text-sm text-muted-foreground">
                       {list.length === 0
-                        ? "No plan generated yet — run the simulated analysis."
+                        ? "No plan generated yet — run the agent analysis."
                         : urgentOpen > 0
                           ? `${urgentOpen} urgent step${urgentOpen === 1 ? "" : "s"} still open.`
                           : progress.done === progress.total
