@@ -220,7 +220,7 @@ export function CaseDetailView({ id }: { id: string }) {
           </p>
           <ActionChecklist
             actions={actions}
-            emptyMessage="No action plan yet. Run the simulated analysis from the AI Analysis tab to generate one."
+            emptyMessage="No action plan yet. Run the analysis from the AI Analysis tab to generate one."
           />
         </TabsContent>
 

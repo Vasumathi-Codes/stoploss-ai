@@ -86,6 +86,8 @@ enum AgentStatus {
 
 enum FindingSource {
   mock_analysis
+  /// Produced by a Microsoft Foundry model. Never verified.
+  ai_analysis
   user_supplied
   verified_guidance
   unverified_assumption
@@ -308,13 +310,17 @@ model ActionItem {
 
 /// One analysis pass over an incident (all four agents). Kept as history.
 model AnalysisRun {
-  id          String            @id @default(uuid()) @db.Uuid
-  incidentId  String            @db.Uuid
-  engine      AnalysisEngine    @default(mock)
-  status      AnalysisRunStatus @default(running)
-  startedAt   DateTime          @default(now()) @db.Timestamptz(3)
-  completedAt DateTime?         @db.Timestamptz(3)
-  error       String?
+  id            String            @id @default(uuid()) @db.Uuid
+  incidentId    String            @db.Uuid
+  engine        AnalysisEngine    @default(mock)
+  /// Foundry model deployment used (null for template runs).
+  model         String?           @db.VarChar(120)
+  /// Version of the agent instructions, so stored findings can be traced to a prompt.
+  promptVersion String?           @db.VarChar(40)
+  status        AnalysisRunStatus @default(running)
+  startedAt     DateTime          @default(now()) @db.Timestamptz(3)
+  completedAt   DateTime?         @db.Timestamptz(3)
+  error         String?
 
   incident Incident       @relation(fields: [incidentId], references: [id], onDelete: Cascade)
   findings AgentFinding[]

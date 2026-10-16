@@ -9,7 +9,7 @@ import { AgentStatusBadge } from "@/components/shared/status-badges"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import { useFindings } from "@/features/agents/hooks"
+import { useAnalysisEngine, useFindings } from "@/features/agents/hooks"
 import { AGENTS } from "@/lib/config/agents"
 import { cn } from "@/lib/utils"
 import { formatDateTime } from "@/lib/utils/format"
@@ -34,7 +34,9 @@ export function AgentCard({ agentId, state, incident, className }: AgentCardProp
   const agent = AGENTS[agentId]
   const Icon = AGENT_ICONS[agentId]
   const findings = useFindings(incident?.id, agentId)
-  const latest = findings.find((f) => f.source === "mock_analysis") ?? findings[0]
+  const { copy } = useAnalysisEngine(incident?.id)
+  const latest =
+    findings.find((f) => f.source === "ai_analysis") ?? findings.find((f) => f.source === "mock_analysis") ?? findings[0]
   const status = state?.status ?? "not_started"
 
   return (
@@ -97,9 +99,7 @@ export function AgentCard({ agentId, state, incident, className }: AgentCardProp
             {state?.completedAt && <span>· Finished {formatDateTime(state.completedAt)}</span>}
           </div>
           <FindingsList findings={findings} emptyMessage="This agent hasn't produced any findings for this case yet." />
-          <p className="rounded-lg bg-muted p-3 text-xs text-muted-foreground">
-            Simulated demo analysis. Findings come from fixed templates and the details you entered; no AI model was used.
-          </p>
+          <p className="rounded-lg bg-muted p-3 text-xs text-muted-foreground">{copy.disclaimer}</p>
         </DialogContent>
       </Dialog>
     </Card>

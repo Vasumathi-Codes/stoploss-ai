@@ -1,7 +1,11 @@
+"use client"
+
 import Link from "next/link"
 import { Bot, CheckCircle2, Info, type LucideIcon, Settings2, TriangleAlert, User } from "lucide-react"
 
 import { AGENTS } from "@/lib/config/agents"
+import { ANALYSIS_COPY } from "@/lib/config/analysis-copy"
+import { useAppStore } from "@/lib/store/app-store"
 import { cn } from "@/lib/utils"
 import { formatDateTime } from "@/lib/utils/format"
 import { TONE_ICON, type Tone } from "@/lib/utils/tone"
@@ -30,6 +34,7 @@ interface ActivityTimelineProps {
 
 export function ActivityTimeline({ events, incidents, className, dense }: ActivityTimelineProps) {
   const byId = incidents ? new Map(incidents.map((i) => [i.id, i])) : undefined
+  const engines = useAppStore((s) => s.incidentEngines)
   return (
     <ol className={cn("relative", className)}>
       {events.map((e, idx) => {
@@ -54,7 +59,7 @@ export function ActivityTimeline({ events, incidents, className, dense }: Activi
                 <span aria-hidden>·</span>
                 <span>
                   {e.actor === "agent" && e.agentId
-                    ? `${AGENTS[e.agentId].name} (simulated)`
+                    ? `${AGENTS[e.agentId].name}${ANALYSIS_COPY[engines[e.incidentId] ?? "mock"].agentSuffix}`
                     : e.actor === "user"
                       ? "You"
                       : "System"}

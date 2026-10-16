@@ -3,12 +3,13 @@
  *
  * Implemented by the API client in ./api, which talks to the Next.js route
  * handlers in `src/app/api` (PostgreSQL via Prisma). Agent orchestration runs on
- * the server; Microsoft Foundry will plug in there. No page should import a
- * vendor SDK directly.
+ * the server (Microsoft Foundry when configured, see src/server/foundry). No
+ * page should import a vendor SDK directly.
  */
 import type {
   ActionItem,
   AgentFinding,
+  AnalysisEngine,
   CaseStatus,
   CaseTimelineEvent,
   Currency,
@@ -36,6 +37,10 @@ export interface AppSnapshot {
   readEventIds: string[]
   /** Incidents with an analysis run in progress on the server. */
   runningIncidentIds: string[]
+  /** Engine new analysis runs will use (server configuration). */
+  analysis: { engine: AnalysisEngine; model?: string }
+  /** Engine of each incident's most recent analysis run. */
+  incidentEngines: Record<string, AnalysisEngine>
 }
 
 export interface NewIncidentInput {
