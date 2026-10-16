@@ -24,7 +24,7 @@ export function ActionPlanDetailView({ id }: { id: string }) {
       <EmptyState
         icon={FileQuestion}
         title="Action plan not found"
-        description="There's no demo case with this ID. Demo data is kept in memory, so a page refresh resets it."
+        description="There's no case with this ID. It may have been deleted, or the demo data may have been reset."
         action={
           <Button asChild>
             <Link href="/action-plans">

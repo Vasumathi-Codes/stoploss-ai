@@ -50,9 +50,10 @@ export function ProfileView() {
   const { errors, isDirty } = form.formState
   const language = useWatch({ control: form.control, name: "preferredLanguage" })
 
-  const submit = form.handleSubmit((values) => {
-    profileService.updateProfile(values)
-    toast.success("Profile updated", { description: "Saved in this tab's memory only." })
+  const submit = form.handleSubmit(async (values) => {
+    if (!(await profileService.updateProfile(values))) return
+    form.reset(values)
+    toast.success("Profile updated")
   })
 
   return (

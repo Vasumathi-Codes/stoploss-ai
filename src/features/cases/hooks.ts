@@ -3,15 +3,15 @@
 import { useMemo } from "react"
 
 import { ACTIVE_STATUSES } from "@/lib/config/taxonomy"
-import { useDemoStore } from "@/lib/store/demo-store"
+import { useAppStore } from "@/lib/store/app-store"
 import type { ActionItem } from "@/types"
 
 export function useIncidents() {
-  return useDemoStore((s) => s.incidents)
+  return useAppStore((s) => s.incidents)
 }
 
 export function useIncident(id: string | undefined) {
-  return useDemoStore((s) => (id ? s.incidents.find((i) => i.id === id) : undefined))
+  return useAppStore((s) => (id ? s.incidents.find((i) => i.id === id) : undefined))
 }
 
 export function useActiveIncidents() {
@@ -30,7 +30,7 @@ export function computeProgress(actions: ActionItem[]) {
 
 /** Map of incidentId → progress, computed once per actions change. */
 export function useProgressByIncident() {
-  const actions = useDemoStore((s) => s.actions)
+  const actions = useAppStore((s) => s.actions)
   return useMemo(() => {
     const grouped = new Map<string, ActionItem[]>()
     for (const a of actions) grouped.set(a.incidentId, [...(grouped.get(a.incidentId) ?? []), a])
@@ -41,5 +41,5 @@ export function useProgressByIncident() {
 }
 
 export function useProfile() {
-  return useDemoStore((s) => s.profile)
+  return useAppStore((s) => s.profile)
 }

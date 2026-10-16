@@ -22,7 +22,7 @@ export function CaseAnalysisTab({ incident }: { incident: Incident }) {
           <div className="text-sm">
             <p className="font-medium">Simulated Demo Analysis</p>
             <p className="text-muted-foreground">
-              Generated in your browser from fixed templates and your inputs. No AI model, Microsoft Foundry or external check is
+              Generated on the server from fixed templates and your inputs. No AI model, Microsoft Foundry or external check is
               involved.
             </p>
           </div>

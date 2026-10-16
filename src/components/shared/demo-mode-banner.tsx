@@ -12,10 +12,7 @@ export function DemoModeBanner() {
         <FlaskConical aria-hidden className="size-3.5 shrink-0" />
         <span className="truncate">
           <span className="font-semibold">Demo Mode</span>
-          <span className="hidden sm:inline">
-            {" "}
-            — fictional data and simulated agents. Nothing is sent to a bank, police or any server.
-          </span>
+          <span className="hidden sm:inline"> — sample data and simulated agents. Nothing is sent to a bank or the police.</span>
         </span>
         <Dialog>
           <DialogTrigger className="shrink-0 rounded underline underline-offset-2 hover:no-underline">Learn more</DialogTrigger>
@@ -26,13 +23,13 @@ export function DemoModeBanner() {
             </DialogHeader>
             <ul className="list-disc space-y-2 pl-5 text-sm text-muted-foreground">
               <li>
-                Agent findings are produced by fixed templates in your browser. No AI model, Microsoft Foundry or other service is
+                Agent findings are produced by fixed templates on the server. No AI model, Microsoft Foundry or other service is
                 called.
               </li>
+              <li>Cases and notes are saved in the app&apos;s database. Settings → Reset demo data restores the sample cases.</li>
               <li>
-                Cases, notes and evidence live only in this tab&apos;s memory. Refreshing the page restores the sample data.
+                Evidence files never leave your device — only their names, types and sizes are saved — and are not analysed.
               </li>
-              <li>Uploaded files never leave your device and are not analysed.</li>
               <li>
                 STOPLOSS AI never contacts your bank, files a complaint or freezes an account, and cannot promise that money will
                 be recovered.

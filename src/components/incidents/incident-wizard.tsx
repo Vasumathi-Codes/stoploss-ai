@@ -198,8 +198,9 @@ export function IncidentWizard() {
             <div className="flex items-start gap-3 rounded-xl border bg-muted/40 p-4 text-sm">
               <Info aria-hidden className="mt-0.5 size-4 shrink-0 text-info" />
               <p className="text-muted-foreground">
-                Submitting creates a <span className="font-medium text-foreground">local demo case</span> in this browser tab. It
-                does not contact your bank, file an official complaint or send your information anywhere.
+                Submitting saves a <span className="font-medium text-foreground">demo case</span> to the STOPLOSS AI database.
+                Only file names, types and sizes are saved — the files stay on your device. It does not contact your bank or file
+                an official complaint.
               </p>
             </div>
             <div className="space-y-2">

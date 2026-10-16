@@ -75,9 +75,9 @@ export function EvidenceVaultView() {
         <div className="space-y-1.5">
           <p className="font-medium">How evidence is handled in this demo</p>
           <ul className="grid list-disc gap-x-6 gap-y-1 pl-5 text-muted-foreground md:grid-cols-2">
-            <li>Evidence stays local in this browser tab.</li>
-            <li>Files are not transmitted or stored on a backend.</li>
-            <li>Uploads are lost when you refresh or close the tab.</li>
+            <li>Only each file&apos;s name, type and size is saved with your case.</li>
+            <li>The files themselves stay on your device and are never uploaded.</li>
+            <li>Previews work only in the tab where you added the file.</li>
             <li>Production needs secure storage, access control, encryption and retention policies.</li>
           </ul>
         </div>

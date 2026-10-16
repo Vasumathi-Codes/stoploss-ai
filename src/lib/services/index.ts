@@ -1,15 +1,15 @@
 /**
- * The single import point for data operations. Swap these exports for real
- * implementations (API client, Foundry-backed agent service) in a later phase.
+ * The single import point for data operations. Backed by the Next.js API
+ * (`src/app/api`) and PostgreSQL; agent analysis runs on the server.
  */
 export {
   actionPlanService,
   agentService,
+  ApiError,
   caseService,
   demoService,
   evidenceService,
   incidentService,
   profileService,
-  resourceService,
-} from "./mock"
+} from "./api"
 export type * from "./types"

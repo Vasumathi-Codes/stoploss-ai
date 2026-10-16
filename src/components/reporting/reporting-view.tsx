@@ -5,7 +5,7 @@ import { ClipboardList, Scale, ShieldAlert } from "lucide-react"
 import { OfficialResourceCard } from "@/components/reporting/official-resource-card"
 import { PageHeader, SectionHeading } from "@/components/shared/page-header"
 import { Card } from "@/components/ui/card"
-import { resourceService } from "@/lib/services"
+import { useOfficialResources } from "@/features/resources/hooks"
 
 const PREP = [
   "Transaction date, time, amount and reference (UTR / RRN)",
@@ -16,7 +16,7 @@ const PREP = [
 ]
 
 export function ReportingView() {
-  const resources = resourceService.listOfficialResources()
+  const resources = useOfficialResources()
   return (
     <div className="space-y-8">
       <PageHeader

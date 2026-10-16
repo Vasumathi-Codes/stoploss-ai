@@ -21,12 +21,16 @@ function AddEvidenceBody({ fixedIncidentId, onDone }: { fixedIncidentId?: string
   const [incidentId, setIncidentId] = useState(fixedIncidentId ?? incidents[0]?.id ?? "")
   const { files, rejected, addFiles, removeFile, release, ready } = useLocalFiles()
 
-  const save = () => {
+  const [saving, setSaving] = useState(false)
+  const save = async () => {
+    setSaving(true)
     const picked = release()
-    evidenceService.addFiles(incidentId, picked)
+    const ok = await evidenceService.addFiles(incidentId, picked)
+    setSaving(false)
+    if (!ok) return
     const ref = incidents.find((i) => i.id === incidentId)?.reference
     toast.success(`${picked.length} file${picked.length === 1 ? "" : "s"} added to ${ref}`, {
-      description: "Stored in this browser tab only.",
+      description: "Details saved. The files stay on your device.",
     })
     onDone()
   }
@@ -55,7 +59,7 @@ function AddEvidenceBody({ fixedIncidentId, onDone }: { fixedIncidentId?: string
         <Button variant="outline" onClick={onDone}>
           Cancel
         </Button>
-        <Button onClick={save} disabled={files.length === 0 || !ready || !incidentId}>
+        <Button onClick={() => void save()} disabled={files.length === 0 || !ready || !incidentId || saving}>
           Add {files.length > 0 ? files.length : ""} file{files.length === 1 ? "" : "s"}
         </Button>
       </DialogFooter>
@@ -95,7 +99,7 @@ export function AddEvidenceDialog({
         <DialogContent className="max-h-[90dvh] overflow-y-auto sm:max-w-2xl">
           <DialogHeader>
             <DialogTitle>Add evidence</DialogTitle>
-            <DialogDescription>Files are kept in this browser tab only and are never transmitted.</DialogDescription>
+            <DialogDescription>Only file names, types and sizes are saved. The files stay on your device.</DialogDescription>
           </DialogHeader>
           {open && <AddEvidenceBody fixedIncidentId={incidentId} onDone={() => setOpen(false)} />}
         </DialogContent>

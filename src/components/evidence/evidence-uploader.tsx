@@ -71,8 +71,8 @@ export function EvidenceUploader({ files, rejected, onAdd, onRemove, className }
       <p className="flex items-start gap-2 rounded-lg bg-warning/10 p-3 text-xs text-warning">
         <ShieldAlert aria-hidden className="mt-0.5 size-4 shrink-0" />
         <span>
-          Don&apos;t upload passwords, PINs, OTPs or unrelated personal documents. In this demo, files stay in your browser and
-          are never sent to a server or analysed.
+          Don&apos;t upload passwords, PINs, OTPs or unrelated personal documents. Only each file&apos;s name, type and size is
+          saved with your case. The file itself stays on your device and is not analysed.
         </span>
       </p>
 

@@ -23,8 +23,8 @@ export function CaseNotesTab({ incident }: { incident: Incident }) {
   const error = form.formState.errors.body?.message
   const body = useWatch({ control: form.control, name: "body" }) ?? ""
 
-  const submit = form.handleSubmit(({ body }) => {
-    caseService.addNote(incident.id, body.trim())
+  const submit = form.handleSubmit(async ({ body }) => {
+    if (!(await caseService.addNote(incident.id, body.trim()))) return
     form.reset({ body: "" })
     toast.success("Note added")
   })
@@ -87,12 +87,11 @@ export function CaseNotesTab({ incident }: { incident: Incident }) {
         open={deleteId !== null}
         onOpenChange={(o) => !o && setDeleteId(null)}
         title="Delete this note?"
-        description={<p>This can&apos;t be undone in the demo.</p>}
+        description={<p>This can&apos;t be undone.</p>}
         confirmLabel="Delete note"
         destructive
-        onConfirm={() => {
-          if (deleteId) caseService.removeNote(incident.id, deleteId)
-          toast.success("Note deleted")
+        onConfirm={async () => {
+          if (deleteId && (await caseService.removeNote(incident.id, deleteId))) toast.success("Note deleted")
         }}
       />
     </div>

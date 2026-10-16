@@ -11,7 +11,7 @@ import { PriorityBadge, ToneBadge } from "@/components/shared/status-badges"
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { useActions } from "@/features/action-plans/hooks"
-import { getOfficialResource } from "@/lib/config/official-resources"
+import { useOfficialResource } from "@/features/resources/hooks"
 import { actionPlanService } from "@/lib/services"
 import { cn } from "@/lib/utils"
 import { formatDateTime } from "@/lib/utils/format"
@@ -39,18 +39,18 @@ export function ActionItem({ action, incident, compact }: ActionItemProps) {
   const siblings = useActions(action.incidentId)
   const [detailsOpen, setDetailsOpen] = useState(false)
   const [confirmOpen, setConfirmOpen] = useState(false)
-  const resource = getOfficialResource(action.resourceId)
+  const resource = useOfficialResource(action.resourceId)
   const done = action.status === "completed"
   const prerequisites = (action.dependsOn ?? [])
     .map((key) => siblings.find((s) => s.key === key))
     .filter((s): s is ActionItemType => Boolean(s))
   const openPrereqs = prerequisites.filter((p) => p.status !== "completed")
 
-  const complete = () => {
-    actionPlanService.setStatus(action.id, "completed")
+  const complete = async () => {
+    if (!(await actionPlanService.setStatus(action.id, "completed"))) return
     toast.success("Marked as complete", {
       description: action.title,
-      action: { label: "Undo", onClick: () => actionPlanService.setStatus(action.id, action.status) },
+      action: { label: "Undo", onClick: () => void actionPlanService.setStatus(action.id, action.status) },
     })
   }
   const requestComplete = () => (action.origin === "external" ? setConfirmOpen(true) : complete())

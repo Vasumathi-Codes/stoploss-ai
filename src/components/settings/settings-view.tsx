@@ -139,7 +139,11 @@ export function SettingsView() {
           </CardHeader>
           <CardContent>
             <ul className="list-disc space-y-1.5 pl-5 text-sm text-muted-foreground">
-              <li>Case details, notes and evidence are held in memory for this tab only and are never sent anywhere.</li>
+              <li>
+                Case details and notes are saved in the STOPLOSS AI database. Evidence files stay on your device — only their
+                names, types and sizes are saved.
+              </li>
+              <li>Nothing is sent to a bank, the police or any third party.</li>
               <li>Only the preferences on this page are saved in your browser&apos;s local storage.</li>
               <li>There is no account, tracking or analytics in this demo.</li>
               <li>A production version will need a reviewed privacy policy, encryption and data-retention rules.</li>
@@ -173,16 +177,16 @@ export function SettingsView() {
         description={
           <>
             <p>
-              Any cases, notes, task progress and evidence you added in this session will be removed. Running simulations are
-              stopped.
+              All cases, notes, task progress and evidence records you added will be permanently deleted from the database.
+              Running simulations are stopped.
             </p>
             <p>The sample cases will be restored exactly as they were at launch.</p>
           </>
         }
         confirmLabel="Reset demo data"
         destructive
-        onConfirm={() => {
-          demoService.resetDemoData()
+        onConfirm={async () => {
+          if (!(await demoService.resetDemoData())) return
           toast.success("Demo data reset", { description: "Sample cases restored." })
           router.push("/dashboard")
         }}

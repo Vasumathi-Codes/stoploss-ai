@@ -1,5 +1,6 @@
 import { AppHeader } from "@/components/layout/app-header"
 import { AppSidebar } from "@/components/layout/app-sidebar"
+import { DataBoundary } from "@/components/layout/data-boundary"
 import { DemoModeBanner } from "@/components/shared/demo-mode-banner"
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
@@ -16,7 +17,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         <DemoModeBanner />
         <AppHeader />
         <main id="main" className="mx-auto w-full max-w-7xl flex-1 px-4 py-6 md:px-6 md:py-8">
-          {children}
+          <DataBoundary>{children}</DataBoundary>
         </main>
       </div>
     </div>

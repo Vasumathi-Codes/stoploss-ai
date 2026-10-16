@@ -26,9 +26,8 @@ export function EvidenceCard({ item, incident, layout = "grid", selectable }: Ev
   const [confirm, setConfirm] = useState(false)
   const isImage = item.kind === "image" && item.objectUrl
 
-  const remove = () => {
-    evidenceService.remove(item.id)
-    toast.success("Evidence removed", { description: item.name })
+  const remove = async () => {
+    if (await evidenceService.remove(item.id)) toast.success("Evidence removed", { description: item.name })
   }
 
   const actions = (
