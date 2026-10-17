@@ -8,8 +8,9 @@ import type { CreateIncidentBody, EvidenceMeta } from "@/lib/validation/api"
 import { refreshAgent, recoverStaleRuns, resetAgentStates } from "@/server/analysis"
 import { addEvents } from "@/server/context"
 import { type DbTx, prisma } from "@/server/db"
+import { reconcileEvidence } from "@/server/evidence-store"
 import { getFoundryConfig } from "@/server/foundry/client"
-import { notFound } from "@/server/http"
+import { notFound } from "@/server/errors"
 import {
   toAction,
   toAgentStates,
@@ -147,6 +148,8 @@ export async function createIncident(userId: string, input: CreateIncidentBody) 
       { actor: "user", title: "Incident details provided", detail: incident.title, tone: "info" },
     ])
     const evidenceIds = await insertEvidence(tx, incident.id, input.evidence)
+    // Mirrors the reported details into Evidence Intelligence (deterministic, no AI).
+    await reconcileEvidence(tx, incident.id)
     return { incidentId: incident.id, evidenceIds }
   })
 }
@@ -159,6 +162,11 @@ export async function updateIncident(
   await prisma.$transaction(async (tx) => {
     const current = await ownedIncident(tx, userId, incidentId)
     await tx.incident.update({ where: { id: incidentId }, data: patch })
+    const detailsChanged =
+      (patch.transactionRef !== undefined && patch.transactionRef !== current.transactionRef) ||
+      (patch.counterparty !== undefined && patch.counterparty !== current.counterparty)
+    // Re-match before the agents refresh, so their evidence checks see the new details.
+    if (detailsChanged) await reconcileEvidence(tx, incidentId)
     if (patch.status && patch.status !== current.status) {
       await addEvents(tx, incidentId, [
         {
@@ -223,7 +231,9 @@ export async function removeEvidence(userId: string, evidenceId: string) {
   await prisma.$transaction(async (tx) => {
     const item = await tx.evidenceItem.findFirst({ where: { id: evidenceId, incident: { userId } } })
     if (!item) throw notFound("Evidence item")
+    // Its extracted facts and matches are deleted with it (foreign-key cascade).
     await tx.evidenceItem.delete({ where: { id: evidenceId } })
+    await reconcileEvidence(tx, item.incidentId)
     await tx.incident.update({ where: { id: item.incidentId }, data: { updatedAt: new Date() } })
     await addEvents(tx, item.incidentId, [{ actor: "user", title: "Evidence removed", detail: item.name }])
     await refreshAgent(tx, item.incidentId, "evidence")

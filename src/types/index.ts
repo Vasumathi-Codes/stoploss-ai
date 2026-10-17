@@ -87,7 +87,14 @@ export interface Agent {
 }
 
 /** Where a finding's content comes from — always shown next to it. */
-export type FindingSource = "mock_analysis" | "ai_analysis" | "user_supplied" | "verified_guidance" | "unverified_assumption"
+export type FindingSource =
+  | "mock_analysis"
+  | "ai_analysis"
+  | "user_supplied"
+  | "verified_guidance"
+  | "unverified_assumption"
+  /** Computed by Evidence Intelligence's fixed matching rules. Not AI, not verified. */
+  | "evidence_check"
 
 /** Which implementation produced an analysis: fixed templates, or a Microsoft Foundry model. */
 export type AnalysisEngine = "mock" | "foundry"
@@ -210,6 +217,8 @@ export interface ScreenshotReading {
   currency?: Currency
   /** ISO 8601. Screenshot times without a zone are read as India time. */
   occurredAt?: string
+  /** "day" when the screenshot showed a date but no time (the stored time is then a placeholder). */
+  occurredAtPrecision?: "minute" | "day"
   transactionRef?: string
   counterparty?: string
   paymentMethod?: string

@@ -149,6 +149,8 @@ export function parseExtraction(outputText: string, now = Date.now()): Extracted
   const currency = CURRENCIES.includes(r.currency as Currency) ? (r.currency as Currency) : undefined
   const paymentMethod = PAYMENT_METHODS.find((m) => m === r.paymentMethod)
   const note = r.note?.trim() && noSecrets(r.note) ? r.note.trim().slice(0, 200) : undefined
+  const occurredAt = toOccurredAt(r.date, r.time, now)
+  const hasTime = Boolean(r.time && /^([01]\d|2[0-3]):[0-5]\d$/.test(r.time.trim()))
 
   return {
     isPaymentRecord: r.isPaymentRecord,
@@ -156,7 +158,8 @@ export function parseExtraction(outputText: string, now = Date.now()): Extracted
     direction: r.direction,
     amount,
     currency: amount !== undefined ? (currency ?? "INR") : undefined,
-    occurredAt: toOccurredAt(r.date, r.time, now),
+    occurredAt,
+    occurredAtPrecision: occurredAt ? (hasTime ? "minute" : "day") : undefined,
     transactionRef: cleanTransactionRef(r.transactionRef),
     counterparty: cleanCounterparty(r.counterparty),
     paymentMethod,

@@ -15,6 +15,10 @@ incidents 1─* analysis_runs 1─* agent_findings
 incidents 1─* agent_findings
 incidents 1─4 agent_states      (one per agent)
 incidents 1─* timeline_events
+incidents 1─* evidence_facts *─1 evidence_items        (null evidence = case form)
+incidents 1─* transaction_candidates 1─* evidence_facts
+incidents 1─* evidence_matches *─2 evidence_facts      (factA, factB)
+incidents 1─* evidence_review_events
 ```
 
 ## Tables
@@ -70,7 +74,9 @@ Indexes: `(userId, status)`, `(userId, updatedAt desc)`
 
 ### evidence_items
 
-Metadata only. File contents stay on the user's device.
+Metadata only. File contents stay on the user's device. Evidence Intelligence adds
+`processingStatus` (`EvidenceProcessingStatus`, default `not_processed`), `processedAt` and
+`processingError` (a fixed, safe message).
 
 | Column      | Type           | Notes                                |
 | ----------- | -------------- | ------------------------------------ |
@@ -208,7 +214,7 @@ Reference data, seeded from `src/lib/config/official-resources.ts`.
 | EvidenceKind      | image, pdf, text, other                                                                                                   |
 | AgentId           | incident, containment, evidence, recovery                                                                                 |
 | AgentStatus       | not_started, analyzing, awaiting_information, completed, needs_review                                                     |
-| FindingSource     | mock_analysis, user_supplied, verified_guidance, unverified_assumption                                                    |
+| FindingSource     | mock_analysis, ai_analysis, user_supplied, verified_guidance, unverified_assumption, evidence_check                       |
 | Confidence        | low, medium, high                                                                                                         |
 | AnalysisRunStatus | running, completed, cancelled, failed                                                                                     |
 | AnalysisEngine    | mock, foundry                                                                                                             |
@@ -219,9 +225,25 @@ Reference data, seeded from `src/lib/config/official-resources.ts`.
 | TimelineTone      | neutral, success, warning, info                                                                                           |
 | ResourceKind      | portal, helpline, provider, regulator, telecom                                                                            |
 
+### Evidence Intelligence tables
+
+See [EVIDENCE_INTELLIGENCE.md](EVIDENCE_INTELLIGENCE.md#data-model-and-migration) for the rules.
+
+| Table                    | Key columns                                                                                                                                                                                                                                                                                                                    |
+| ------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `evidence_facts`         | `factKey` (unique per incident), `recordKey`, `recordRole`, `factType`, `sourceType`, `extractionMethod`, `rawValue`, `normalizedValue`, `amountMinor` (bigint paise), `currency`, `occurredAt`, `timePrecision`, `sourceLocation`, `reviewStatus`, `correctedValue`, FK `evidenceId` (cascade), FK `transactionId` (set null) |
+| `transaction_candidates` | `candidateKey` (unique per incident)                                                                                                                                                                                                                                                                                           |
+| `evidence_matches`       | `matchKey` (unique per incident), `ruleId`, `outcome`, `relation`, FK `factAId`/`factBId` (cascade), `transactionId`, `explanation`, `uncertainty`, `requiresReview`, `reviewStatus`                                                                                                                                           |
+| `evidence_review_events` | `action`, `fromStatus`, `toStatus`, `actor`, FK `factId`/`matchId` (set null) — never values                                                                                                                                                                                                                                   |
+
+New enums: EvidenceProcessingStatus, EvidenceSourceType, EvidenceRecordRole, ExtractionMethod, EvidenceFactType,
+TimePrecision, FactReviewStatus, MatchOutcome, EvidenceRelation, MatchReviewStatus, EvidenceReviewAction.
+`FindingSource` gains `evidence_check`.
+
 ## Never stored
 
-Passwords, UPI PINs, OTPs, CVVs, full card numbers, banking logins, evidence file contents.
+Passwords, UPI PINs, OTPs, CVVs, full card numbers, banking logins, evidence file contents, chat message
+text, statement balances.
 
 ## Commands
 

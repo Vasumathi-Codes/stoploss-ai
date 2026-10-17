@@ -1,7 +1,9 @@
 import type { DbTx } from "@/server/db"
 import { prisma } from "@/server/db"
+import { loadGraph } from "@/server/evidence-store"
 import { toAction, toEvidence, toIncident } from "@/server/mappers"
 import { SAMPLE_PROFILE } from "@/server/seed"
+import { digestGraph } from "@/lib/evidence/digest"
 import type { AnalysisContext } from "@/lib/playbooks"
 import type { CaseTimelineEvent } from "@/types"
 
@@ -50,5 +52,6 @@ export async function loadContext(db: DbTx, incidentId: string): Promise<Analysi
     incident: toIncident(row),
     evidence: row.evidence.map(toEvidence),
     actions: row.actions.map(toAction),
+    evidenceDigest: digestGraph(await loadGraph(db, incidentId)),
   }
 }

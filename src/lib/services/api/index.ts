@@ -2,10 +2,12 @@
 
 import { toast } from "sonner"
 
+import { MAX_CHAT_CHARS } from "@/lib/evidence/chat-parser"
 import { prepareScreenshot } from "@/lib/images/prepare-screenshot"
 import { getActionTemplates } from "@/lib/playbooks"
 import { applySnapshot, type LocalFileData, useAppStore } from "@/lib/store/app-store"
 import type { EvidenceMeta } from "@/lib/validation/api"
+import type { EvidenceGraph } from "@/lib/evidence/types"
 import type { ScreenshotReading } from "@/types"
 
 import type {
@@ -14,6 +16,7 @@ import type {
   AppSnapshot,
   CaseService,
   DemoService,
+  EvidenceGraphService,
   EvidenceService,
   ExtractionService,
   IncidentService,
@@ -203,6 +206,45 @@ export const evidenceService: EvidenceService = {
     }
   },
 
+  async attachLocalFile(evidenceId, file) {
+    const item = useAppStore.getState().evidence.find((e) => e.id === evidenceId)
+    if (!item) return false
+    // Some browsers report an empty type; fall back to the record's type only if the extension agrees.
+    const ext = file.name.split(".").pop()?.toLowerCase() ?? ""
+    const extMime: Record<string, string> = {
+      png: "image/png",
+      jpg: "image/jpeg",
+      jpeg: "image/jpeg",
+      pdf: "application/pdf",
+      txt: "text/plain",
+    }
+    const mime = file.type || extMime[ext]
+    if (mime !== item.mimeType) {
+      toast.error("That's a different kind of file", {
+        description: `This evidence is ${item.mimeType}; choose the same file again.`,
+      })
+      return false
+    }
+    const typed = file.type === mime ? file : new File([file], file.name, { type: mime })
+    const local: LocalFileData =
+      mime === "text/plain"
+        ? { textPreview: await typed.slice(0, MAX_CHAT_CHARS).text() }
+        : { objectUrl: URL.createObjectURL(typed) }
+    const previous = useAppStore.getState().localFiles[evidenceId]?.objectUrl
+    if (previous) URL.revokeObjectURL(previous)
+    useAppStore.setState((s) => ({
+      localFiles: { ...s.localFiles, [evidenceId]: local },
+      evidence: s.evidence.map((e) =>
+        e.id === evidenceId ? { ...e, objectUrl: undefined, textPreview: undefined, ...local } : e,
+      ),
+    }))
+    if (file.name !== item.name || file.size !== item.size)
+      toast.warning("Opened, but it may not be the same file", {
+        description: `The name or size differs from “${item.name}”. Check the preview before reading it.`,
+      })
+    return true
+  },
+
   async remove(evidenceId) {
     const ok = await mutate("DELETE", `/evidence/${evidenceId}`)
     if (ok) releaseLocalFiles(new Set(useAppStore.getState().evidence.map((e) => e.id)))
@@ -221,6 +263,38 @@ export const extractionService: ExtractionService = {
     const { result } = await request<{ result: ScreenshotReading }>("POST", "/extract", image)
     return result
   },
+
+  async readEvidenceScreenshot(file, evidenceId) {
+    const image = await prepareScreenshot(file)
+    const { result, readingId } = await request<{ result: ScreenshotReading; readingId?: string }>("POST", "/extract", {
+      ...image,
+      evidenceId,
+    })
+    return { reading: result, readingId }
+  },
+}
+
+/** Runs a graph mutation, applies the returned snapshot (agent findings refresh too) and reports failures. */
+async function graphMutation(method: string, path: string, body: unknown, failure: string) {
+  try {
+    const { graph, snapshot } = await request<{ graph: EvidenceGraph; snapshot: AppSnapshot }>(method, path, body)
+    applySnapshot(snapshot)
+    return graph
+  } catch (error) {
+    toast.error(failure, { description: (error as Error).message })
+    return undefined
+  }
+}
+
+export const evidenceGraphService: EvidenceGraphService = {
+  async get(incidentId) {
+    const { graph } = await request<{ graph: EvidenceGraph }>("GET", `/incidents/${incidentId}/evidence-graph`)
+    return graph
+  },
+  analyze: (incidentId, sources) =>
+    graphMutation("POST", `/incidents/${incidentId}/evidence-graph/analyze`, { sources }, "The evidence wasn't analysed"),
+  review: (incidentId, factId, body) =>
+    graphMutation("PATCH", `/incidents/${incidentId}/evidence-facts/${factId}`, body, "That review wasn't saved"),
 }
 
 export const profileService: ProfileService = {

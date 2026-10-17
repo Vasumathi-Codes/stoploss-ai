@@ -1,31 +1,8 @@
 import { unstable_rethrow } from "next/navigation"
-import { z } from "zod"
-
 import { Prisma } from "@/generated/prisma/client"
+import { HttpError } from "@/server/errors"
 
-export class HttpError extends Error {
-  constructor(
-    readonly status: number,
-    message: string,
-    readonly details?: unknown,
-  ) {
-    super(message)
-  }
-}
-
-export const notFound = (what: string) => new HttpError(404, `${what} not found`)
-
-export async function parseBody<T extends z.ZodType>(request: Request, schema: T): Promise<z.infer<T>> {
-  let raw: unknown
-  try {
-    raw = await request.json()
-  } catch {
-    throw new HttpError(400, "Request body must be valid JSON")
-  }
-  const result = schema.safeParse(raw)
-  if (!result.success) throw new HttpError(422, "Validation failed", z.flattenError(result.error).fieldErrors)
-  return result.data
-}
+export { HttpError, notFound, parseBody } from "@/server/errors"
 
 /** Wraps a route handler so thrown errors become consistent JSON responses. */
 export function handle<Args extends unknown[]>(fn: (...args: Args) => Promise<Response>) {

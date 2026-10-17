@@ -91,6 +91,8 @@ enum FindingSource {
   user_supplied
   verified_guidance
   unverified_assumption
+  /// Computed by the deterministic cross-source matcher (src/lib/evidence). Not AI, not verified.
+  evidence_check
 }
 
 enum Confidence {
@@ -142,6 +144,113 @@ enum TimelineTone {
   success
   warning
   info
+}
+
+/**
+ * ------------------------------------------------------------------
+ */
+/**
+ * Evidence Intelligence enums
+ */
+/**
+ * ------------------------------------------------------------------
+ */
+
+/// Whether facts have been extracted from an evidence item.
+enum EvidenceProcessingStatus {
+  not_processed
+  processed
+  /// Processed, but nothing usable was found.
+  no_facts
+  failed
+  /// No extractor exists for this file type.
+  unsupported
+}
+
+/// What kind of source a fact came from.
+enum EvidenceSourceType {
+  payment_screenshot
+  sms_notification
+  bank_statement
+  chat_export
+  /// What the person typed into the case form.
+  case_details
+  other_document
+}
+
+/// transaction: the record describes a payment. context: it only mentions one (e.g. a chat).
+enum EvidenceRecordRole {
+  transaction
+  context
+}
+
+enum ExtractionMethod {
+  vision_model
+  statement_parser
+  chat_parser
+  user_entry
+}
+
+enum EvidenceFactType {
+  amount
+  transaction_reference
+  transaction_datetime
+  recipient_upi_id
+  recipient_phone
+  recipient_account
+  recipient_name
+  payment_method
+  transaction_direction
+  transaction_status
+  message_event
+  other
+}
+
+enum TimePrecision {
+  minute
+  day
+}
+
+/// The person's review of one fact. "Conflicted" is derived from matches, never stored here.
+enum FactReviewStatus {
+  unreviewed
+  user_confirmed
+  user_rejected
+  user_corrected
+  needs_verification
+}
+
+enum MatchOutcome {
+  match
+  partial_match
+  conflict
+  insufficient_evidence
+  unrelated
+}
+
+enum EvidenceRelation {
+  corroborates
+  conflicts_with
+  possibly_same_transaction
+  related_context
+}
+
+enum MatchReviewStatus {
+  open
+  reviewed
+  deferred
+}
+
+enum EvidenceReviewAction {
+  confirm
+  reject
+  correct
+  mark_needs_verification
+  reset
+  review_conflict
+  defer_conflict
+  /// Re-extraction found a different value for a fact the person had reviewed.
+  reextracted_changed
 }
 
 enum ResourceKind {
@@ -212,7 +321,7 @@ model Incident {
   /// True for clearly fictional sample rows created by the seed script.
   isSample         Boolean       @default(false)
 
-  user         User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user         User                   @relation(fields: [userId], references: [id], onDelete: Cascade)
   notes        CaseNote[]
   evidence     EvidenceItem[]
   actions      ActionItem[]
@@ -220,6 +329,10 @@ model Incident {
   analysisRuns AnalysisRun[]
   findings     AgentFinding[]
   timeline     TimelineEvent[]
+  facts        EvidenceFact[]
+  transactions TransactionCandidate[]
+  matches      EvidenceMatch[]
+  reviewEvents EvidenceReviewEvent[]
 
   @@index([userId, status])
   @@index([userId, updatedAt(sort: Desc)])
@@ -256,10 +369,146 @@ model EvidenceItem {
   isSample    Boolean      @default(false)
   addedAt     DateTime     @default(now()) @db.Timestamptz(3)
 
-  incident Incident @relation(fields: [incidentId], references: [id], onDelete: Cascade)
+  /// Evidence Intelligence: whether facts were extracted (the file itself is still never stored).
+  processingStatus EvidenceProcessingStatus @default(not_processed)
+  processedAt      DateTime?                @db.Timestamptz(3)
+  /// Safe, user-facing reason when processing failed. Never model output or file content.
+  processingError  String?                  @db.VarChar(200)
+
+  incident Incident       @relation(fields: [incidentId], references: [id], onDelete: Cascade)
+  facts    EvidenceFact[]
 
   @@index([incidentId, addedAt(sort: Desc)])
   @@map("evidence_items")
+}
+
+/**
+ * ------------------------------------------------------------------
+ */
+/**
+ * Evidence Intelligence
+ */
+/**
+ * ------------------------------------------------------------------
+ */
+
+/// One fact as one source states it (a screenshot, a statement row, a chat message or the case form).
+/// Values are screened before storage: never OTPs, PINs, CVVs or full card numbers.
+model EvidenceFact {
+  id               String             @id @default(uuid()) @db.Uuid
+  incidentId       String             @db.Uuid
+  /// Null for facts the person typed into the case form.
+  evidenceId       String?            @db.Uuid
+  transactionId    String?            @db.Uuid
+  /// Stable identity within the case (source + location + type). Re-extraction upserts by it.
+  factKey          String             @db.VarChar(200)
+  /// Facts that one source presents together (one screenshot, one statement row, one message).
+  recordKey        String             @db.VarChar(160)
+  recordRole       EvidenceRecordRole
+  factType         EvidenceFactType
+  sourceType       EvidenceSourceType
+  extractionMethod ExtractionMethod
+  /// Model deployment + prompt version, or parser version.
+  extractorVersion String?            @db.VarChar(80)
+  /// The value as found, after screening.
+  rawValue         String             @db.VarChar(200)
+  /// Comparison value (see src/lib/evidence/normalize.ts).
+  normalizedValue  String             @db.VarChar(200)
+  /// Amounts in minor units (paise), so comparisons never use floating point.
+  amountMinor      BigInt?
+  currency         Currency?
+  occurredAt       DateTime?          @db.Timestamptz(3)
+  timePrecision    TimePrecision?
+  /// e.g. "Page 1 · row 4" or "Message 5 · 15 Oct 2026, 2:36 pm". Null when the source gives none.
+  sourceLocation   String?            @db.VarChar(120)
+  reviewStatus     FactReviewStatus   @default(unreviewed)
+  /// The person's correction. The extracted rawValue is kept alongside it.
+  correctedValue   String?            @db.VarChar(200)
+  reviewedAt       DateTime?          @db.Timestamptz(3)
+  createdAt        DateTime           @default(now()) @db.Timestamptz(3)
+  updatedAt        DateTime           @updatedAt @db.Timestamptz(3)
+
+  incident    Incident              @relation(fields: [incidentId], references: [id], onDelete: Cascade)
+  evidence    EvidenceItem?         @relation(fields: [evidenceId], references: [id], onDelete: Cascade)
+  transaction TransactionCandidate? @relation(fields: [transactionId], references: [id], onDelete: SetNull)
+  matchesA    EvidenceMatch[]       @relation("MatchFactA")
+  matchesB    EvidenceMatch[]       @relation("MatchFactB")
+  reviews     EvidenceReviewEvent[]
+
+  @@unique([incidentId, factKey])
+  @@index([incidentId, factType])
+  @@index([evidenceId])
+  @@index([transactionId])
+  @@map("evidence_facts")
+}
+
+/// A possible transaction assembled from facts by the deterministic matcher.
+model TransactionCandidate {
+  id           String   @id @default(uuid()) @db.Uuid
+  incidentId   String   @db.Uuid
+  /// Stable key from the matcher, so reprocessing updates rather than duplicates.
+  candidateKey String   @db.VarChar(200)
+  createdAt    DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt    DateTime @updatedAt @db.Timestamptz(3)
+
+  incident Incident        @relation(fields: [incidentId], references: [id], onDelete: Cascade)
+  facts    EvidenceFact[]
+  matches  EvidenceMatch[]
+
+  @@unique([incidentId, candidateKey])
+  @@map("transaction_candidates")
+}
+
+/// The result of comparing two facts under one documented rule.
+model EvidenceMatch {
+  id             String            @id @default(uuid()) @db.Uuid
+  incidentId     String            @db.Uuid
+  /// Rule + fact ids + compared values. A changed value yields a new key, so a review never carries over to different data.
+  matchKey       String            @db.VarChar(300)
+  ruleId         String            @db.VarChar(60)
+  outcome        MatchOutcome
+  relation       EvidenceRelation
+  factAId        String            @db.Uuid
+  factBId        String            @db.Uuid
+  transactionId  String?           @db.Uuid
+  explanation    String            @db.VarChar(600)
+  uncertainty    String?           @db.VarChar(300)
+  requiresReview Boolean           @default(false)
+  reviewStatus   MatchReviewStatus @default(open)
+  reviewedAt     DateTime?         @db.Timestamptz(3)
+  createdAt      DateTime          @default(now()) @db.Timestamptz(3)
+  updatedAt      DateTime          @updatedAt @db.Timestamptz(3)
+
+  incident    Incident              @relation(fields: [incidentId], references: [id], onDelete: Cascade)
+  factA       EvidenceFact          @relation("MatchFactA", fields: [factAId], references: [id], onDelete: Cascade)
+  factB       EvidenceFact          @relation("MatchFactB", fields: [factBId], references: [id], onDelete: Cascade)
+  transaction TransactionCandidate? @relation(fields: [transactionId], references: [id], onDelete: SetNull)
+  reviews     EvidenceReviewEvent[]
+
+  @@unique([incidentId, matchKey])
+  @@index([factAId])
+  @@index([factBId])
+  @@map("evidence_matches")
+}
+
+/// Audit trail of the person's reviews. Records what changed, never the values themselves.
+model EvidenceReviewEvent {
+  id         String               @id @default(uuid()) @db.Uuid
+  incidentId String               @db.Uuid
+  factId     String?              @db.Uuid
+  matchId    String?              @db.Uuid
+  action     EvidenceReviewAction
+  fromStatus String?              @db.VarChar(40)
+  toStatus   String?              @db.VarChar(40)
+  actor      TimelineActor        @default(user)
+  createdAt  DateTime             @default(now()) @db.Timestamptz(3)
+
+  incident Incident       @relation(fields: [incidentId], references: [id], onDelete: Cascade)
+  fact     EvidenceFact?  @relation(fields: [factId], references: [id], onDelete: SetNull)
+  match    EvidenceMatch? @relation(fields: [matchId], references: [id], onDelete: SetNull)
+
+  @@index([incidentId, createdAt])
+  @@map("evidence_review_events")
 }
 
 /**

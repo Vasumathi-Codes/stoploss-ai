@@ -33,7 +33,10 @@ function display(field: ReadableField, r: ScreenshotReading) {
 }
 
 type Phase =
-  { name: "consent" } | { name: "reading" } | { name: "done"; reading: ScreenshotReading } | { name: "error"; message: string }
+  | { name: "consent" }
+  | { name: "reading" }
+  | { name: "done"; reading: ScreenshotReading; readingId?: string }
+  | { name: "error"; message: string }
 
 /**
  * Reads one screenshot with the person's explicit consent and lets them choose
@@ -44,8 +47,11 @@ export function ScreenshotReaderDialog({
   previewUrl,
   fields,
   current = {},
+  evidenceId,
+  saveOnly = false,
   onOpenChange,
   onApply,
+  onSave,
 }: {
   /** The image to read; the dialog is open while this is set. */
   file: File | null
@@ -55,8 +61,15 @@ export function ScreenshotReaderDialog({
   fields: ReadableField[]
   /** Values already entered, so the person can see what would change. */
   current?: Partial<Record<ReadableField, string | number | undefined>>
+  /** A case's evidence item: the reading can then be kept in Evidence Intelligence. */
+  evidenceId?: string
+  /** Show what was found and offer only "Save to Evidence Intelligence" (no case fields change). */
+  saveOnly?: boolean
   onOpenChange: (open: boolean) => void
-  onApply: (patch: ReadingPatch) => boolean | Promise<boolean>
+  /** `readingId` is set when the server holds the reading for Evidence Intelligence. */
+  onApply: (patch: ReadingPatch, readingId?: string) => boolean | Promise<boolean>
+  /** Saves what was found to Evidence Intelligence without changing the case details. */
+  onSave?: (readingId: string) => boolean | Promise<boolean>
 }) {
   const [phase, setPhase] = useState<Phase>({ name: "consent" })
   const [selected, setSelected] = useState<Set<ReadableField>>(new Set())
@@ -80,9 +93,11 @@ export function ScreenshotReaderDialog({
     if (!file) return
     setPhase({ name: "reading" })
     try {
-      const reading = await extractionService.readScreenshot(file)
+      const { reading, readingId } = evidenceId
+        ? await extractionService.readEvidenceScreenshot(file, evidenceId)
+        : { reading: await extractionService.readScreenshot(file), readingId: undefined }
       if (latestFile.current !== file) return
-      setPhase({ name: "done", reading })
+      setPhase({ name: "done", reading, readingId })
       // Pre-select everything found that isn't already entered.
       setSelected(new Set(found(reading).filter((f) => current[f] !== reading[f])))
     } catch (error) {
@@ -101,7 +116,17 @@ export function ScreenshotReaderDialog({
     if (selected.has("amount")) patch.currency = r.currency
     setApplying(true)
     try {
-      if (await onApply(patch)) onOpenChange(false)
+      if (await onApply(patch, phase.readingId)) onOpenChange(false)
+    } finally {
+      setApplying(false)
+    }
+  }
+
+  const save = async () => {
+    if (phase.name !== "done" || !phase.readingId || !onSave) return
+    setApplying(true)
+    try {
+      if (await onSave(phase.readingId)) onOpenChange(false)
     } finally {
       setApplying(false)
     }
@@ -155,6 +180,13 @@ export function ScreenshotReaderDialog({
                 <ShieldCheck aria-hidden className="mt-0.5 size-4 shrink-0 text-success" />
                 You choose which details to use. Nothing changes until you confirm.
               </li>
+              {evidenceId && (
+                <li className="flex gap-2">
+                  <ShieldCheck aria-hidden className="mt-0.5 size-4 shrink-0 text-success" />
+                  If you use or save the details, they are kept as unreviewed facts in this case&apos;s Evidence Intelligence,
+                  linked to this file — the image itself is still not kept.
+                </li>
+              )}
             </ul>
             <p className="text-xs text-muted-foreground">
               Prefer not to? Close this and type the details yourself. The screenshot then stays on your device.
@@ -182,6 +214,7 @@ export function ScreenshotReaderDialog({
             current={current}
             selected={selected}
             onToggle={toggle}
+            readOnly={saveOnly}
           />
         )}
 
@@ -194,7 +227,13 @@ export function ScreenshotReaderDialog({
               {phase.name === "error" ? "Try again" : "Read screenshot"}
             </Button>
           )}
-          {phase.name === "done" && found(phase.reading).length > 0 && (
+          {phase.name === "done" && phase.readingId && onSave && (
+            <Button type="button" variant={saveOnly ? "default" : "secondary"} onClick={save} disabled={applying}>
+              {saveOnly && applying && <Loader2 aria-hidden className="animate-spin" />}
+              {saveOnly ? "Save to Evidence Intelligence" : "Save to Evidence Intelligence only"}
+            </Button>
+          )}
+          {phase.name === "done" && !saveOnly && found(phase.reading).length > 0 && (
             <Button type="button" onClick={apply} disabled={selected.size === 0 || applying}>
               {applying && <Loader2 aria-hidden className="animate-spin" />}
               Use {selected.size === 1 ? "this detail" : `${selected.size} details`}
@@ -212,12 +251,15 @@ function Results({
   current,
   selected,
   onToggle,
+  readOnly,
 }: {
   reading: ScreenshotReading
   fields: ReadableField[]
   current: Partial<Record<ReadableField, string | number | undefined>>
   selected: Set<ReadableField>
   onToggle: (f: ReadableField, on: boolean) => void
+  /** List what was found without choosing case fields. */
+  readOnly?: boolean
 }) {
   const warnings: string[] = []
   if (reading.containsSensitiveData)
@@ -240,6 +282,20 @@ function Results({
       ))}
       {fields.length === 0 ? (
         <p className="text-sm text-muted-foreground">No payment details were found in this screenshot.</p>
+      ) : readOnly ? (
+        <div className="space-y-2">
+          <dl className="divide-y rounded-md border">
+            {fields.map((f) => (
+              <div key={f} className="p-3">
+                <dt className="text-xs text-muted-foreground">{LABELS[f]}</dt>
+                <dd className="mt-0.5 font-medium break-all">{display(f, reading)}</dd>
+              </div>
+            ))}
+          </dl>
+          <p className="text-xs text-muted-foreground">
+            AI can misread screenshots. Saved details stay unreviewed until you check them; your case details don&apos;t change.
+          </p>
+        </div>
       ) : (
         <fieldset className="space-y-2">
           <legend className="mb-2 text-sm font-medium">Choose the details to use</legend>

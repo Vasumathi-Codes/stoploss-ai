@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react"
 
+import { MAX_CHAT_CHARS } from "@/lib/evidence/chat-parser"
 import type { LocalEvidenceFile } from "@/lib/services"
 
 export const ACCEPTED_TYPES: Record<string, string> = {
@@ -102,7 +103,8 @@ export function useLocalFiles() {
           continue
         }
         const normalized = mime === file.type ? file : new File([file], file.name, { type: mime })
-        const textPreview = mime === "text/plain" ? await normalized.slice(0, 4000).text() : undefined
+        // Kept in this tab only; long enough for Evidence Intelligence to read a chat export.
+        const textPreview = mime === "text/plain" ? await normalized.slice(0, MAX_CHAT_CHARS).text() : undefined
         const objectUrl = mime.startsWith("image/") || mime === "application/pdf" ? URL.createObjectURL(normalized) : undefined
         accepted.push({
           id: `${file.name}-${file.size}-${file.lastModified}`,
