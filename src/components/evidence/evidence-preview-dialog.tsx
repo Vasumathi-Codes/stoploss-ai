@@ -22,7 +22,7 @@ export function EvidencePreviewDialog({ item, incident, open, onOpenChange }: Pr
           <DialogDescription>
             {item.isSample
               ? "Sample metadata record — no file is attached in this demo."
-              : "Preview from this browser tab. The file itself was not uploaded or analysed."}
+              : "Preview from this browser tab. The file itself was not uploaded."}
           </DialogDescription>
         </DialogHeader>
 

@@ -18,6 +18,7 @@ import type {
   Incident,
   IncidentAgentState,
   OfficialResource,
+  ScreenshotReading,
   TriState,
   UserProfile,
 } from "@/types"
@@ -52,6 +53,7 @@ export interface NewIncidentInput {
   occurredAt: string
   paymentMethod: string
   transactionRef?: string
+  counterparty?: string
   hasAccountAccess: TriState
   ongoing?: TriState
 }
@@ -72,6 +74,8 @@ export interface CaseService {
   addNote(incidentId: string, body: string): Promise<boolean>
   removeNote(incidentId: string, noteId: string): Promise<boolean>
   setTransactionRef(incidentId: string, ref: string): Promise<boolean>
+  /** Adds details read from a screenshot (or typed) to an existing case. */
+  updateDetails(incidentId: string, patch: { transactionRef?: string; counterparty?: string }): Promise<boolean>
 }
 
 export interface EvidenceService {
@@ -89,6 +93,11 @@ export interface AgentService {
   /** Runs (or reruns) the analysis for one incident. Resolves true when all agents settle, false if superseded. */
   runAnalysis(incidentId: string): Promise<boolean>
   isRunning(incidentId: string): boolean
+}
+
+export interface ExtractionService {
+  /** Sends one image, with the person's consent, to be read. Never stored. */
+  readScreenshot(file: File): Promise<ScreenshotReading>
 }
 
 export interface ProfileService {

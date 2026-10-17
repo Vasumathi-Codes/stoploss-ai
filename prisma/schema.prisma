@@ -204,6 +204,8 @@ model Incident {
   paymentMethod    String        @db.VarChar(60)
   /// UTR / RRN / UPI ref. Validated upstream to reject card numbers and secrets.
   transactionRef   String?       @db.VarChar(60)
+  /// Where the money went: UPI ID, phone number or account, as the person reported it.
+  counterparty     String?       @db.VarChar(120)
   hasAccountAccess TriState
   ongoing          TriState?
   status           CaseStatus    @default(reported)

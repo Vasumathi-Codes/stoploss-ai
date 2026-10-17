@@ -8,6 +8,27 @@ export const CARD_NUMBER_PATTERN = /(?:\d[ -]?){13,19}/
 
 export const noSecrets = (value: string) => !SECRET_PATTERN.test(value)
 
+/** True for a 13–19 digit number that passes the Luhn checksum, i.e. probably a payment card. */
+export function looksLikeCardNumber(value: string) {
+  const digits = value.replace(/[\s-]/g, "")
+  if (!/^\d{13,19}$/.test(digits)) return false
+  let sum = 0
+  for (let i = 0; i < digits.length; i++) {
+    let d = Number(digits[digits.length - 1 - i])
+    if (i % 2 === 1) d = d * 2 > 9 ? d * 2 - 9 : d * 2
+    sum += d
+  }
+  return sum % 10 === 0
+}
+
+/** Where the money went: a UPI ID, phone number or account, as shown on the payment. */
+export const counterpartyField = z
+  .string()
+  .trim()
+  .max(120, "Keep this under 120 characters")
+  .refine((v) => !looksLikeCardNumber(v), "This looks like a card number. Don't enter full card numbers.")
+  .refine(noSecrets, "Don't include PINs, OTPs or passwords")
+
 export const incidentDetailsSchema = z.object({
   category: z.enum(FRAUD_CATEGORY_IDS as [string, ...string[]], { error: "Choose the type that fits best" }),
   title: z.string().trim().max(80, "Keep the name under 80 characters").optional(),
@@ -40,6 +61,7 @@ export const incidentDetailsSchema = z.object({
     )
     .refine(noSecrets, "Don't include PINs, OTPs or passwords")
     .optional(),
+  counterparty: counterpartyField.optional(),
   hasAccountAccess: z.enum(["yes", "no", "unsure"], { error: "Let us know if you can still access the account" }),
   ongoing: z.enum(["yes", "no", "unsure"]).optional(),
   confirmAccurate: z.boolean(),
@@ -56,6 +78,7 @@ export const STEP_ONE_FIELDS = [
   "occurredAt",
   "paymentMethod",
   "transactionRef",
+  "counterparty",
   "hasAccountAccess",
   "ongoing",
 ] as const satisfies readonly (keyof IncidentFormValues)[]

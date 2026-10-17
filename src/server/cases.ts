@@ -136,6 +136,7 @@ export async function createIncident(userId: string, input: CreateIncidentBody) 
         occurredAt: new Date(input.occurredAt),
         paymentMethod: input.paymentMethod,
         transactionRef: input.transactionRef || null,
+        counterparty: input.counterparty || null,
         hasAccountAccess: input.hasAccountAccess,
         ongoing: input.ongoing,
         status: "reported",
@@ -153,7 +154,7 @@ export async function createIncident(userId: string, input: CreateIncidentBody) 
 export async function updateIncident(
   userId: string,
   incidentId: string,
-  patch: { status?: CaseStatus; transactionRef?: string },
+  patch: { status?: CaseStatus; transactionRef?: string; counterparty?: string },
 ) {
   await prisma.$transaction(async (tx) => {
     const current = await ownedIncident(tx, userId, incidentId)
@@ -170,6 +171,14 @@ export async function updateIncident(
     if (patch.transactionRef !== undefined && patch.transactionRef !== current.transactionRef) {
       await addEvents(tx, incidentId, [{ actor: "user", title: "Transaction reference added", tone: "info" }])
       for (const agentId of ["incident", "evidence", "recovery"] as const) await refreshAgent(tx, incidentId, agentId)
+    }
+    if (patch.counterparty !== undefined && patch.counterparty !== current.counterparty) {
+      await addEvents(tx, incidentId, [
+        { actor: "user", title: "Recipient details added", detail: "Where the money went", tone: "info" },
+      ])
+      // A reference change above already refreshed these agents.
+      if (patch.transactionRef === undefined || patch.transactionRef === current.transactionRef)
+        for (const agentId of ["incident", "evidence", "recovery"] as const) await refreshAgent(tx, incidentId, agentId)
     }
   })
 }

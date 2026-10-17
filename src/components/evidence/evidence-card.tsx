@@ -2,29 +2,59 @@
 
 import { useState } from "react"
 import Link from "next/link"
-import { Eye, FileText, FlaskConical, MonitorSmartphone, Trash2 } from "lucide-react"
+import { Eye, FileText, FlaskConical, MonitorSmartphone, ScanText, Trash2 } from "lucide-react"
 import { toast } from "sonner"
 
 import { EvidencePreviewDialog } from "@/components/evidence/evidence-preview-dialog"
 import { FileIcon } from "@/components/evidence/file-icon"
+import { type ReadingPatch, ScreenshotReaderDialog } from "@/components/evidence/screenshot-reader-dialog"
 import { ConfirmationDialog } from "@/components/shared/confirmation-dialog"
 import { Button } from "@/components/ui/button"
-import { evidenceService } from "@/lib/services"
+import { useAnalysisEngine } from "@/features/agents/hooks"
+import { READABLE_IMAGE_TYPES } from "@/lib/images/prepare-screenshot"
+import { caseService, evidenceService } from "@/lib/services"
 import { cn } from "@/lib/utils"
 import { formatDateTime, formatFileSize } from "@/lib/utils/format"
 import type { EvidenceItem, Incident } from "@/types"
 
 interface EvidenceCardProps {
   item: EvidenceItem
+  /** Shown as a link to the case. */
   incident?: Incident
+  /** The case that details read from this file are added to. Defaults to `incident`. */
+  readInto?: Incident
   layout?: "grid" | "list"
   selectable?: { selected: boolean; onToggle: () => void }
 }
 
-export function EvidenceCard({ item, incident, layout = "grid", selectable }: EvidenceCardProps) {
+export function EvidenceCard({ item, incident, readInto = incident, layout = "grid", selectable }: EvidenceCardProps) {
   const [preview, setPreview] = useState(false)
   const [confirm, setConfirm] = useState(false)
   const isImage = item.kind === "image" && item.objectUrl
+  const { engine } = useAnalysisEngine()
+  const [reading, setReading] = useState<File | null>(null)
+  // Only images still open in this tab can be read; the server never has the file.
+  const canRead = engine === "foundry" && readInto && isImage && READABLE_IMAGE_TYPES.includes(item.mimeType)
+
+  const openReader = async () => {
+    try {
+      const blob = await (await fetch(item.objectUrl!)).blob()
+      setReading(new File([blob], item.name, { type: item.mimeType }))
+    } catch {
+      toast.error("This file is no longer available in this tab", { description: "Add it again to read its details." })
+    }
+  }
+
+  /** Cases keep amount and date as reported; a screenshot can add the reference and recipient. */
+  const applyReading = async (patch: ReadingPatch) => {
+    if (!readInto) return false
+    const ok = await caseService.updateDetails(readInto.id, {
+      transactionRef: patch.transactionRef,
+      counterparty: patch.counterparty,
+    })
+    if (ok) toast.success("Case details updated", { description: "The agents' checklist has been refreshed." })
+    return ok
+  }
 
   const remove = async () => {
     if (await evidenceService.remove(item.id)) toast.success("Evidence removed", { description: item.name })
@@ -32,6 +62,17 @@ export function EvidenceCard({ item, incident, layout = "grid", selectable }: Ev
 
   const actions = (
     <div className="flex items-center gap-1">
+      {canRead && (
+        <Button
+          variant="ghost"
+          size="icon-sm"
+          onClick={openReader}
+          aria-label={`Read details from ${item.name}`}
+          title="Read details"
+        >
+          <ScanText aria-hidden />
+        </Button>
+      )}
       <Button variant="ghost" size="icon-sm" onClick={() => setPreview(true)} aria-label={`Preview ${item.name}`}>
         <Eye aria-hidden />
       </Button>
@@ -158,6 +199,16 @@ export function EvidenceCard({ item, incident, layout = "grid", selectable }: Ev
           )}
           {actions}
         </div>
+      )}
+      {canRead && (
+        <ScreenshotReaderDialog
+          file={reading}
+          previewUrl={item.objectUrl}
+          fields={["transactionRef", "counterparty"]}
+          current={{ transactionRef: readInto.transactionRef, counterparty: readInto.counterparty }}
+          onOpenChange={(open) => !open && setReading(null)}
+          onApply={applyReading}
+        />
       )}
       <EvidencePreviewDialog item={item} incident={incident} open={preview} onOpenChange={setPreview} />
       <ConfirmationDialog

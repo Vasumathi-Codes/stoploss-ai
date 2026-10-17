@@ -39,6 +39,7 @@ export function toIncident(i: Db.Incident & { notes: Db.CaseNote[] }): Incident 
     updatedAt: iso(i.updatedAt),
     paymentMethod: i.paymentMethod,
     transactionRef: opt(i.transactionRef),
+    counterparty: opt(i.counterparty),
     hasAccountAccess: i.hasAccountAccess,
     ongoing: opt(i.ongoing),
     status: i.status,

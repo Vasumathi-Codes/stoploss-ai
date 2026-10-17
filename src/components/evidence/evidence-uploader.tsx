@@ -1,11 +1,12 @@
 "use client"
 
 import { useId, useRef, useState } from "react"
-import { AlertCircle, ShieldAlert, Upload, X } from "lucide-react"
+import { AlertCircle, ScanText, ShieldAlert, Upload, X } from "lucide-react"
 
 import { FileIcon, kindFromMime } from "@/components/evidence/file-icon"
 import { Button } from "@/components/ui/button"
 import { Progress } from "@/components/ui/progress"
+import { canReadScreenshot } from "@/lib/images/prepare-screenshot"
 import { ACCEPT_ATTR, MAX_FILES, type PendingFile, type RejectedFile } from "@/features/evidence/use-local-files"
 import { cn } from "@/lib/utils"
 import { formatFileSize } from "@/lib/utils/format"
@@ -15,10 +16,12 @@ interface EvidenceUploaderProps {
   rejected: RejectedFile[]
   onAdd: (files: File[]) => void
   onRemove: (id: string) => void
+  /** When set, image files offer "Read details" (opt-in screenshot reading). */
+  onRead?: (file: PendingFile) => void
   className?: string
 }
 
-export function EvidenceUploader({ files, rejected, onAdd, onRemove, className }: EvidenceUploaderProps) {
+export function EvidenceUploader({ files, rejected, onAdd, onRemove, onRead, className }: EvidenceUploaderProps) {
   const inputRef = useRef<HTMLInputElement>(null)
   const [dragging, setDragging] = useState(false)
   const hintId = useId()
@@ -72,7 +75,10 @@ export function EvidenceUploader({ files, rejected, onAdd, onRemove, className }
         <ShieldAlert aria-hidden className="mt-0.5 size-4 shrink-0" />
         <span>
           Don&apos;t upload passwords, PINs, OTPs or unrelated personal documents. Only each file&apos;s name, type and size is
-          saved with your case. The file itself stays on your device and is not analysed.
+          saved with your case. The file itself stays on your device
+          {onRead
+            ? ". Choosing “Read details” on a screenshot sends only that image, once, to be read — it is never stored."
+            : " and is not analysed."}
         </span>
       </p>
 
@@ -122,6 +128,12 @@ export function EvidenceUploader({ files, rejected, onAdd, onRemove, className }
                   <p className="text-xs text-muted-foreground">
                     {f.file.type.split("/")[1]?.toUpperCase()} · {formatFileSize(f.file.size)}
                   </p>
+                  {onRead && canReadScreenshot(f.file) && f.progress >= 100 && (
+                    <Button type="button" variant="outline" size="xs" onClick={() => onRead(f)}>
+                      <ScanText aria-hidden />
+                      Read details
+                    </Button>
+                  )}
                   <div className="flex items-center gap-2">
                     <Progress value={f.progress} className="h-1.5" aria-label={`${f.file.name} local processing`} />
                     <span className="w-16 text-right text-[11px] text-muted-foreground tabular-nums">

@@ -152,6 +152,7 @@ export function buildInput(agentId: AgentId, ctx: AnalysisContext, resources: Of
         reportedInAppAt: incident.reportedAt,
         paymentMethodOrPlatform: incident.paymentMethod,
         transactionReferenceProvided: Boolean(incident.transactionRef),
+        recipientUpiIdOrAccountProvided: Boolean(incident.counterparty),
         stillHasAccessToAffectedAccount: incident.hasAccountAccess,
         incidentStillOngoing: incident.ongoing ?? "not stated",
       },

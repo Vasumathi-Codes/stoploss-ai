@@ -90,6 +90,10 @@ export function CaseOverviewTab({
                   )
                 }
               />
+              <Item
+                label="Money sent to"
+                value={incident.counterparty ?? <span className="text-muted-foreground">Not provided</span>}
+              />
               <Item label="Still happening" value={incident.ongoing ? TRI[incident.ongoing] : "Not answered"} />
               <Item label="Access to the account" value={TRI[incident.hasAccountAccess]} />
             </DetailGroup>

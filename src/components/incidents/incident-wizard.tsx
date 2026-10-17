@@ -9,6 +9,7 @@ import { toast } from "sonner"
 
 import { kindFromMime } from "@/components/evidence/file-icon"
 import { EvidenceUploader } from "@/components/evidence/evidence-uploader"
+import { type ReadingPatch, ScreenshotReaderDialog } from "@/components/evidence/screenshot-reader-dialog"
 import { IncidentSummary, type IncidentSummaryData } from "@/components/incidents/incident-summary"
 import { StepDetails } from "@/components/incidents/step-details"
 import { Button } from "@/components/ui/button"
@@ -40,6 +41,7 @@ function toSummary(v: IncidentFormValues): IncidentSummaryData {
     occurredAt: new Date(v.occurredAt).toISOString(),
     paymentMethod: v.paymentMethod,
     transactionRef: v.transactionRef?.trim() || undefined,
+    counterparty: v.counterparty?.trim() || undefined,
     hasAccountAccess: v.hasAccountAccess as TriState,
     ongoing: v.ongoing as TriState | undefined,
   }
@@ -52,6 +54,7 @@ export function IncidentWizard() {
   const headingRef = useRef<HTMLHeadingElement>(null)
   const local = useLocalFiles()
   const { engine, copy } = useAnalysisEngine()
+  const [reading, setReading] = useState<{ file: File; objectUrl?: string } | null>(null)
 
   const form = useForm<IncidentFormValues>({
     resolver: zodResolver(incidentDetailsSchema),
@@ -64,6 +67,7 @@ export function IncidentWizard() {
       occurredAt: "",
       paymentMethod: "",
       transactionRef: "",
+      counterparty: "",
       confirmAccurate: false,
     },
   })
@@ -114,6 +118,20 @@ export function IncidentWizard() {
     })()
 
   const values = useWatch({ control: form.control }) as IncidentFormValues
+
+  /** Fills the form with the details the person chose from a screenshot. */
+  const applyReading = (patch: ReadingPatch) => {
+    const set = (name: keyof IncidentFormValues, value: string) =>
+      form.setValue(name, value, { shouldDirty: true, shouldValidate: true })
+    if (patch.amount !== undefined) set("amount", String(patch.amount))
+    if (patch.currency) set("currency", patch.currency)
+    if (patch.occurredAt) set("occurredAt", toLocalInput(patch.occurredAt))
+    if (patch.transactionRef) set("transactionRef", patch.transactionRef)
+    if (patch.counterparty) set("counterparty", patch.counterparty)
+    if (patch.paymentMethod) set("paymentMethod", patch.paymentMethod)
+    toast.success("Details added to your report", { description: "Check them in step 1 before creating the case." })
+    return true
+  }
   const confirmError = form.formState.errors.confirmAccurate?.message
 
   return (
@@ -192,6 +210,7 @@ export function IncidentWizard() {
             rejected={local.rejected}
             onAdd={(f) => void local.addFiles(f)}
             onRemove={local.removeFile}
+            onRead={engine === "foundry" ? (f) => setReading({ file: f.file, objectUrl: f.objectUrl }) : undefined}
           />
         )}
 
@@ -272,6 +291,21 @@ export function IncidentWizard() {
           </div>
         )}
       </Card>
+
+      <ScreenshotReaderDialog
+        file={reading?.file ?? null}
+        previewUrl={reading?.objectUrl}
+        fields={["amount", "occurredAt", "transactionRef", "counterparty", "paymentMethod"]}
+        current={{
+          amount: values.amount ? Number(values.amount.replace(/,/g, "")) : undefined,
+          occurredAt: values.occurredAt ? new Date(values.occurredAt).toISOString() : undefined,
+          transactionRef: values.transactionRef,
+          counterparty: values.counterparty,
+          paymentMethod: values.paymentMethod,
+        }}
+        onOpenChange={(open) => !open && setReading(null)}
+        onApply={applyReading}
+      />
     </div>
   )
 }
@@ -316,4 +350,11 @@ function CreatedPanel({ incident, engine }: { incident: Incident; engine: Analys
       </div>
     </div>
   )
+}
+
+/** ISO → the value a datetime-local input expects, in the browser's time zone. */
+function toLocalInput(iso: string) {
+  const d = new Date(iso)
+  const pad = (n: number) => String(n).padStart(2, "0")
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`
 }

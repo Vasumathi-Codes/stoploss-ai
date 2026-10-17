@@ -10,6 +10,7 @@
     "typecheck": "next typegen && tsc --noEmit",
     "test": "node --conditions=react-server --import tsx --test \"src/**/*.test.ts\"",
     "test:foundry": "node --env-file=.env --conditions=react-server --import tsx scripts/foundry-smoke.ts",
+    "test:extract": "node --env-file=.env --conditions=react-server --import tsx scripts/extract-smoke.ts",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "postinstall": "prisma generate",

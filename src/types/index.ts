@@ -45,6 +45,8 @@ export interface Incident {
   updatedAt: string
   paymentMethod: string
   transactionRef?: string
+  /** Where the money went: UPI ID, phone number or account. */
+  counterparty?: string
   hasAccountAccess: TriState
   ongoing?: TriState
   status: CaseStatus
@@ -194,3 +196,24 @@ export interface LearningResource {
 }
 
 export type LearningCategory = "recognize" | "preserve" | "secure" | "report" | "recovery_scams" | "protect"
+
+export type ScreenshotKind = "bank_sms" | "payment_app" | "bank_statement" | "chat" | "other"
+
+/** Payment details read from one screenshot (see src/server/foundry/extract.ts). Every field is a suggestion the person confirms. */
+export interface ScreenshotReading {
+  /** The screenshot shows a payment or bank transaction. */
+  isPaymentRecord: boolean
+  kind: ScreenshotKind
+  /** Money left ("debit") or arrived ("credit") in the person's account. */
+  direction: "debit" | "credit" | "unclear"
+  amount?: number
+  currency?: Currency
+  /** ISO 8601. Screenshot times without a zone are read as India time. */
+  occurredAt?: string
+  transactionRef?: string
+  counterparty?: string
+  paymentMethod?: string
+  /** The screenshot shows an OTP, PIN, password or full card number. Those values are never returned. */
+  containsSensitiveData: boolean
+  note?: string
+}
