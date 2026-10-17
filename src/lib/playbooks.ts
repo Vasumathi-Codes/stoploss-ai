@@ -8,6 +8,7 @@
 import { AGENTS } from "@/lib/config/agents"
 import { getOfficialResource } from "@/lib/config/official-resources"
 import { FRAUD_CATEGORIES } from "@/lib/config/taxonomy"
+import { type EvidenceDigest, digestItems } from "@/lib/evidence/digest"
 import { formatCurrency, formatDateTime } from "@/lib/utils/format"
 import type {
   ActionItem,
@@ -253,6 +254,8 @@ export interface AnalysisContext {
   incident: Incident
   evidence: EvidenceItem[]
   actions: ActionItem[]
+  /** Value-free summary of Evidence Intelligence, when any evidence has been analysed. */
+  evidenceDigest?: EvidenceDigest
 }
 
 export function getMissingInformation({ incident, evidence }: AnalysisContext) {
@@ -341,9 +344,11 @@ export function buildFindings(agentId: AgentId, ctx: AnalysisContext): FindingDr
         {
           title: "Evidence inventory",
           detail:
-            evidence.length > 0
-              ? `${evidence.length} item(s) recorded for this case. File contents were not analysed.`
-              : "No evidence has been added to this case yet.",
+            evidence.length === 0
+              ? "No evidence has been added to this case yet."
+              : ctx.evidenceDigest
+                ? `${evidence.length} item(s) recorded for this case. Some were analysed in Evidence Intelligence at your request.`
+                : `${evidence.length} item(s) recorded for this case. File contents were not analysed.`,
           source: "user_supplied",
           items: evidence.map((e) => e.name),
         },
@@ -356,6 +361,17 @@ export function buildFindings(agentId: AgentId, ctx: AnalysisContext): FindingDr
           source: "mock_analysis",
           items: gaps,
         },
+        ...(ctx.evidenceDigest
+          ? [
+              {
+                title: "Cross-source checks",
+                detail:
+                  "Computed by fixed rules from the facts extracted from your evidence — not by AI. Extracted facts can be misread: review them in Evidence Intelligence.",
+                source: "evidence_check" as const,
+                items: digestItems(ctx.evidenceDigest),
+              },
+            ]
+          : []),
         {
           title: "Evidence package checklist",
           detail: "Commonly useful items when preparing a report.",

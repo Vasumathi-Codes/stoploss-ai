@@ -32,8 +32,8 @@ export async function runStages<T>(
 
 /** Sources the model may produce. */
 export const AI_SOURCES: FindingSource[] = ["ai_analysis", "unverified_assumption"]
-/** Template findings that are facts (user input, configured guidance) and stay alongside AI output. */
-export const FACT_SOURCES: FindingSource[] = ["user_supplied", "verified_guidance"]
+/** Template findings that are facts (user input, configured guidance, rule-based evidence checks) and stay alongside AI output. */
+export const FACT_SOURCES: FindingSource[] = ["user_supplied", "verified_guidance", "evidence_check"]
 
 /**
  * The findings stored for one agent: the model's findings followed by the template's

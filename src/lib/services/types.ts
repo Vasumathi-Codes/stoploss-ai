@@ -22,6 +22,8 @@ import type {
   TriState,
   UserProfile,
 } from "@/types"
+import type { EvidenceGraph } from "@/lib/evidence/types"
+import type { AnalyzeSource, FactReviewBody } from "@/lib/validation/evidence-graph"
 
 /** Everything the UI shows for the current user, as returned by `GET /api/state`. */
 export interface AppSnapshot {
@@ -81,6 +83,11 @@ export interface CaseService {
 export interface EvidenceService {
   addFiles(incidentId: string, files: LocalEvidenceFile[]): Promise<boolean>
   remove(evidenceId: string): Promise<boolean>
+  /**
+   * Re-opens a file from the device for an existing evidence record, in this tab only (e.g. after a
+   * reload). Nothing is uploaded. Resolves false, after a toast, if the file's type doesn't match.
+   */
+  attachLocalFile(evidenceId: string, file: File): Promise<boolean>
 }
 
 export interface ActionPlanService {
@@ -98,6 +105,20 @@ export interface AgentService {
 export interface ExtractionService {
   /** Sends one image, with the person's consent, to be read. Never stored. */
   readScreenshot(file: File): Promise<ScreenshotReading>
+  /**
+   * Reads a case's evidence image. The server also holds the validated result briefly under
+   * `readingId`, so it can be saved to Evidence Intelligence without sending the image again.
+   */
+  readEvidenceScreenshot(file: File, evidenceId: string): Promise<{ reading: ScreenshotReading; readingId?: string }>
+}
+
+export interface EvidenceGraphService {
+  /** The case's graph from persisted data. Throws ApiError on failure (callers show the error state). */
+  get(incidentId: string): Promise<EvidenceGraph>
+  /** Adds facts from the given sources and re-matches. Resolves undefined (after a toast) on failure. */
+  analyze(incidentId: string, sources: AnalyzeSource[]): Promise<EvidenceGraph | undefined>
+  /** One review action on a fact or one of its conflicts. Resolves undefined (after a toast) on failure. */
+  review(incidentId: string, factId: string, body: FactReviewBody): Promise<EvidenceGraph | undefined>
 }
 
 export interface ProfileService {

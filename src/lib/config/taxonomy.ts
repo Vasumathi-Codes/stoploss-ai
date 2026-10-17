@@ -118,6 +118,11 @@ export const FINDING_SOURCES: Record<FindingSource, { label: string; description
     label: "Unverified assumption",
     description: "An inference that has not been confirmed. Treat with caution.",
   },
+  evidence_check: {
+    label: "Cross-source check",
+    description:
+      "Computed by fixed matching rules from facts extracted from your evidence — not AI. Extracted facts can be misread; check them in Evidence Intelligence.",
+  },
 }
 
 export const CURRENCIES: Currency[] = ["INR", "USD", "EUR", "GBP", "AED"]

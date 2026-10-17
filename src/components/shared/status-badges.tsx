@@ -8,6 +8,7 @@ import {
   CircleDot,
   FileEdit,
   FlaskConical,
+  GitCompareArrows,
   Info,
   Loader2,
   type LucideIcon,
@@ -121,6 +122,7 @@ const SOURCE_META: Record<FindingSource, { tone: Tone; icon: LucideIcon }> = {
   user_supplied: { tone: "info", icon: User },
   verified_guidance: { tone: "success", icon: ShieldCheck },
   unverified_assumption: { tone: "warning", icon: AlertTriangle },
+  evidence_check: { tone: "info", icon: GitCompareArrows },
 }
 
 export function FindingSourceBadge({ source, className }: { source: FindingSource; className?: string }) {

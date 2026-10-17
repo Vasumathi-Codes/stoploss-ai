@@ -8,6 +8,7 @@ export {
   ApiError,
   caseService,
   demoService,
+  evidenceGraphService,
   evidenceService,
   extractionService,
   incidentService,

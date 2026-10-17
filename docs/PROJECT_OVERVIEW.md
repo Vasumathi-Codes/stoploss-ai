@@ -75,7 +75,7 @@ Evidence files stay here                    PostgreSQL
 ## Privacy & Safety
 
 - No passwords, PINs, OTPs or card numbers are collected or stored; both the forms and the API reject them.
-- Evidence files never leave the device; only name, type and size are saved.
+- Evidence files never leave the device; only name, type and size are saved. Opt-in exceptions, per file: screenshot reading and Evidence Intelligence fact extraction (only the extracted facts are stored).
 - A visible Demo Mode banner; all sample data is fictional.
 - Official resources are marked "not yet verified" until someone actually checks them.
 

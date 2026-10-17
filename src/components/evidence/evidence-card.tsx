@@ -12,7 +12,7 @@ import { ConfirmationDialog } from "@/components/shared/confirmation-dialog"
 import { Button } from "@/components/ui/button"
 import { useAnalysisEngine } from "@/features/agents/hooks"
 import { READABLE_IMAGE_TYPES } from "@/lib/images/prepare-screenshot"
-import { caseService, evidenceService } from "@/lib/services"
+import { caseService, evidenceGraphService, evidenceService } from "@/lib/services"
 import { cn } from "@/lib/utils"
 import { formatDateTime, formatFileSize } from "@/lib/utils/format"
 import type { EvidenceItem, Incident } from "@/types"
@@ -46,14 +46,29 @@ export function EvidenceCard({ item, incident, readInto = incident, layout = "gr
   }
 
   /** Cases keep amount and date as reported; a screenshot can add the reference and recipient. */
-  const applyReading = async (patch: ReadingPatch) => {
+  const applyReading = async (patch: ReadingPatch, readingId?: string) => {
     if (!readInto) return false
     const ok = await caseService.updateDetails(readInto.id, {
       transactionRef: patch.transactionRef,
       counterparty: patch.counterparty,
     })
-    if (ok) toast.success("Case details updated", { description: "The agents' checklist has been refreshed." })
-    return ok
+    if (!ok) return false
+    // Keep what was read as unreviewed facts too, so Evidence Intelligence can cross-check it.
+    const saved = readingId ? await saveReading(readingId) : false
+    toast.success("Case details updated", {
+      description: saved
+        ? "Also saved to Evidence Intelligence for cross-checking."
+        : "The agents' checklist has been refreshed.",
+    })
+    return true
+  }
+
+  const saveReading = async (readingId: string) => {
+    if (!readInto) return false
+    const graph = await evidenceGraphService.analyze(readInto.id, [
+      { type: "screenshot_reading", evidenceId: item.id, readingId },
+    ])
+    return graph !== undefined
   }
 
   const remove = async () => {
@@ -206,8 +221,15 @@ export function EvidenceCard({ item, incident, readInto = incident, layout = "gr
           previewUrl={item.objectUrl}
           fields={["transactionRef", "counterparty"]}
           current={{ transactionRef: readInto.transactionRef, counterparty: readInto.counterparty }}
+          evidenceId={item.id}
           onOpenChange={(open) => !open && setReading(null)}
           onApply={applyReading}
+          onSave={async (readingId) => {
+            const ok = await saveReading(readingId)
+            if (ok)
+              toast.success("Saved to Evidence Intelligence", { description: "The details are unreviewed until you check them." })
+            return ok
+          }}
         />
       )}
       <EvidencePreviewDialog item={item} incident={incident} open={preview} onOpenChange={setPreview} />

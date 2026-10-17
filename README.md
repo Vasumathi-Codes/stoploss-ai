@@ -35,17 +35,17 @@ npm run dev            # http://localhost:3000
 
 ## Routes
 
-| Route                                 | Screen                                                         |
-| ------------------------------------- | -------------------------------------------------------------- |
-| `/dashboard` (default)                | Overview, active case, immediate actions, agent team, activity |
-| `/incidents/new`                      | Multi-step fraud report wizard                                 |
-| `/cases`, `/cases/[id]`               | Case list (search/filter/sort, grid/list) and case detail tabs |
-| `/agents`                             | AI Emergency Team — simulated multi-agent analysis             |
-| `/action-plans`, `/action-plans/[id]` | Response steps across cases and per case                       |
-| `/evidence`                           | Evidence Vault with local previews and package preview         |
-| `/reporting`                          | Official reporting channels (central config)                   |
-| `/resources`                          | Learning guides                                                |
-| `/profile`, `/settings`               | Demo profile, preferences, demo data reset                     |
+| Route                                 | Screen                                                                                          |
+| ------------------------------------- | ----------------------------------------------------------------------------------------------- |
+| `/dashboard` (default)                | Overview, active case, immediate actions, agent team, activity                                  |
+| `/incidents/new`                      | Multi-step fraud report wizard                                                                  |
+| `/cases`, `/cases/[id]`               | Case list (search/filter/sort, grid/list) and case detail tabs, incl. **Evidence Intelligence** |
+| `/agents`                             | AI Emergency Team — simulated multi-agent analysis                                              |
+| `/action-plans`, `/action-plans/[id]` | Response steps across cases and per case                                                        |
+| `/evidence`                           | Evidence Vault with local previews and package preview                                          |
+| `/reporting`                          | Official reporting channels (central config)                                                    |
+| `/resources`                          | Learning guides                                                                                 |
+| `/profile`, `/settings`               | Demo profile, preferences, demo data reset                                                      |
 
 ## Architecture
 
@@ -71,51 +71,59 @@ src/
 
 ### Data model
 
-| Table                | Holds                                                                       |
-| -------------------- | --------------------------------------------------------------------------- |
-| `users`              | Profile of the (single, demo) user                                          |
-| `incidents`          | A reported case: category, amount, dates, payment method, status            |
-| `case_notes`         | User notes on a case                                                        |
-| `evidence_items`     | Evidence **metadata** (name, type, size). File contents are never stored    |
-| `action_items`       | Response-plan steps, unique per case by playbook `key`                      |
-| `analysis_runs`      | History of each analysis pass (`engine`: mock / foundry, status, errors)    |
-| `agent_states`       | Current status of each of the four agents per case                          |
-| `agent_findings`     | Agent output, each labelled with its source (mock, user-supplied, guidance) |
-| `timeline_events`    | Case activity feed; `readAt` drives the notifications menu                  |
-| `official_resources` | Reporting channels; `verifiedAt` is null until actually verified            |
+| Table                    | Holds                                                                                         |
+| ------------------------ | --------------------------------------------------------------------------------------------- |
+| `users`                  | Profile of the (single, demo) user                                                            |
+| `incidents`              | A reported case: category, amount, dates, payment method, status                              |
+| `case_notes`             | User notes on a case                                                                          |
+| `evidence_items`         | Evidence **metadata** (name, type, size). File contents are never stored                      |
+| `action_items`           | Response-plan steps, unique per case by playbook `key`                                        |
+| `analysis_runs`          | History of each analysis pass (`engine`: mock / foundry, status, errors)                      |
+| `agent_states`           | Current status of each of the four agents per case                                            |
+| `agent_findings`         | Agent output, each labelled with its source (mock, user-supplied, guidance)                   |
+| `timeline_events`        | Case activity feed; `readAt` drives the notifications menu                                    |
+| `evidence_facts`         | Facts extracted (with consent) from evidence or typed in the case, with provenance and review |
+| `transaction_candidates` | Possible transactions assembled from facts by the deterministic matcher                       |
+| `evidence_matches`       | Rule-based comparisons between facts (match / partial / conflict) and their review            |
+| `evidence_review_events` | Audit of the person's fact and conflict reviews (no values)                                   |
+| `official_resources`     | Reporting channels; `verifiedAt` is null until actually verified                              |
 
 ### API
 
-| Method & path                             | Purpose                                                                     |
-| ----------------------------------------- | --------------------------------------------------------------------------- |
-| `GET /api/state`                          | Everything the UI shows for the current user                                |
-| `GET /api/health`                         | Database connectivity check                                                 |
-| `POST /api/incidents`                     | Create a case (with evidence metadata)                                      |
-| `PATCH /api/incidents/:id`                | Change status, or add the transaction reference / recipient (counterparty)  |
-| `POST /api/extract`                       | Read payment details from one screenshot (Foundry; nothing stored)          |
-| `POST /api/incidents/:id/analysis`        | Start or rerun the agents (202, runs after response)                        |
-| `POST /api/incidents/:id/notes`           | Add a note                                                                  |
-| `DELETE /api/incidents/:id/notes/:noteId` | Delete a note                                                               |
-| `POST /api/incidents/:id/evidence`        | Record evidence metadata                                                    |
-| `DELETE /api/evidence/:id`                | Remove an evidence record                                                   |
-| `PATCH /api/actions/:id`                  | Set an action's status                                                      |
-| `GET /api/resources`                      | Official reporting channels                                                 |
-| `PATCH /api/profile`                      | Update the profile                                                          |
-| `POST /api/notifications/read`            | Mark timeline events read                                                   |
-| `POST /api/demo/reset`                    | Restore sample data (disabled in production unless `ALLOW_DEMO_RESET=true`) |
+| Method & path                                     | Purpose                                                                         |
+| ------------------------------------------------- | ------------------------------------------------------------------------------- |
+| `GET /api/state`                                  | Everything the UI shows for the current user                                    |
+| `GET /api/health`                                 | Database connectivity check                                                     |
+| `POST /api/incidents`                             | Create a case (with evidence metadata)                                          |
+| `PATCH /api/incidents/:id`                        | Change status, or add the transaction reference / recipient (counterparty)      |
+| `POST /api/extract`                               | Read payment details from one screenshot (Foundry; the image is never stored)   |
+| `GET /api/incidents/:id/evidence-graph`           | Evidence Intelligence graph, rebuilt from stored facts (no AI)                  |
+| `POST /api/incidents/:id/evidence-graph/analyze`  | Add facts from a screenshot reading, statement lines or chat messages; re-match |
+| `PATCH /api/incidents/:id/evidence-facts/:factId` | Confirm, reject or correct a fact; mark a conflict reviewed or deferred         |
+| `POST /api/incidents/:id/analysis`                | Start or rerun the agents (202, runs after response)                            |
+| `POST /api/incidents/:id/notes`                   | Add a note                                                                      |
+| `DELETE /api/incidents/:id/notes/:noteId`         | Delete a note                                                                   |
+| `POST /api/incidents/:id/evidence`                | Record evidence metadata                                                        |
+| `DELETE /api/evidence/:id`                        | Remove an evidence record                                                       |
+| `PATCH /api/actions/:id`                          | Set an action's status                                                          |
+| `GET /api/resources`                              | Official reporting channels                                                     |
+| `PATCH /api/profile`                              | Update the profile                                                              |
+| `POST /api/notifications/read`                    | Mark timeline events read                                                       |
+| `POST /api/demo/reset`                            | Restore sample data (disabled in production unless `ALLOW_DEMO_RESET=true`)     |
 
 Mutations respond with `{ snapshot }` (the same shape as `GET /api/state`) so the client cache never drifts from the database. Bodies are validated with Zod on the server, including the same checks as the forms that reject PINs, OTPs, passwords and card numbers.
 
 - **Service boundary.** Components write only through `@/lib/services`, which calls the API. Pages never import Prisma or a vendor SDK.
 - **Agents.** `src/server/analysis.ts` runs the four agents after the response (`after()`) — Incident, then Containment and Evidence in parallel, then Recovery (`src/server/pipeline.ts`) — writing agent states, findings, actions and timeline events as it goes; the client polls `/api/state` while a run is in progress. Starting a run while one is live returns 409; runs interrupted by a restart are marked failed and can be rerun. With Foundry configured, each agent is a model call (`src/server/foundry`), recorded with `engine: "foundry"`, the deployment and the prompt version.
-- **Privacy.** Evidence files stay in the browser — only name, type and size are sent. The one exception is screenshot reading, which the person starts per image (see below). Previews exist only in the tab where the file was added. Incident data is not written to browser storage; only UI preferences persist in `localStorage`.
+- **Privacy.** Evidence files stay in the browser — only name, type and size are sent. The exceptions are opt-in, per file: screenshot reading (see below), and Evidence Intelligence, where the person chooses which statement lines or chat messages to send for fact extraction. Extracted facts (amounts, dates, references, identifiers) are stored; files, message text and balances never are ([details](docs/EVIDENCE_INTELLIGENCE.md#privacy-security-and-retention)). Previews exist only in the tab where the file was added. Incident data is not written to browser storage; only UI preferences persist in `localStorage`.
 - **Official resources** are defined in `lib/config/official-resources.ts` and seeded into the database. All are marked _not yet verified_. Verify every URL and number before production and record real verification dates.
 
 ## Known limitations
 
 - No authentication yet: every request acts as a single demo user (`src/server/context.ts`).
 - No file storage: evidence previews are lost when the tab closes (the metadata stays).
-- Without Foundry configured, agents use fixed templates. The agents never read evidence file contents; only the opt-in screenshot reader does, one image at a time.
+- Without Foundry configured, agents use fixed templates. The agents never read evidence file contents; only the opt-in screenshot reader does, one image at a time. Agents get a value-free Evidence Intelligence digest (fact types and rule outcomes, no identifiers).
+- Evidence Intelligence reads digital PDFs only (no OCR for scans) and WhatsApp-style chat exports; see [its limitations](docs/EVIDENCE_INTELLIGENCE.md#known-limitations).
 - Learning content and resource entries need review by qualified people before launch.
 
 ## Microsoft Foundry
@@ -135,7 +143,7 @@ How a run works (`src/server/analysis.ts`):
 1. Incident runs first; Containment and Evidence then run in parallel on its findings; the Recovery Coordinator combines all three.
 2. Each call uses strict JSON-schema output, validated with Zod. Output that promises recovery, claims to have contacted or filed anything, or asks for PINs/OTPs is dropped.
 3. The model may only label its findings `ai_analysis` or `unverified_assumption`. The action plan and "verified guidance" checklists still come from the curated playbooks.
-4. The model sees case details and evidence _metadata_ — never file contents or the transaction reference value. Requests are sent with `store: false`.
+4. The model sees case details and evidence _metadata_ — never file contents or the transaction reference value. When evidence has been analysed, it also gets a digest of rule-based cross-source results without any identifier values. Requests are sent with `store: false`.
 5. Instructions tell the model to treat all case data as data, never as instructions (prompt-injection guard), and the user's text is only ever in the input, never in the instructions.
 6. If a call fails or times out (one retry), that agent falls back to templates, is marked _Needs review_, and the timeline says so; the run records which agents fell back. Rerunning is safe — actions are keyed, so none are duplicated and your progress is kept.
 7. Logs carry the run id, agent and Foundry response id — never case content.
@@ -144,6 +152,8 @@ Restart the dev server after changing `.env`.
 
 ```bash
 npm test               # unit tests — Foundry is always faked, no Azure needed
+npm run test:db        # Evidence Intelligence against the local Postgres (after db:up + db:deploy)
+npm run test:ui        # server-rendered checks of the Evidence Intelligence components
 npm run test:foundry   # ONE live call with a fictional case, to check your endpoint, key and deployment
 ```
 
@@ -172,6 +182,15 @@ transaction reference (UTR / RRN), recipient (UPI ID, phone or account) and paym
 
 Test material: [`example_run/`](example_run/README.md) has fictional screenshots, a statement PDF and
 expected results.
+
+### Evidence Intelligence
+
+The case's **Evidence Intelligence** tab connects screenshots, bank statements, chat exports and the case
+form into facts with provenance, cross-checks them with fixed, documented rules (not AI), and shows what is
+corroborated, what conflicts and what is missing — as a graph or a list. Screenshot readings are reused
+(never re-sent); statement PDFs and chat exports are parsed in the browser and only the lines the person
+ticks are sent. Conflicts stay open until the person reviews them. Design, rules, API and privacy:
+[`docs/EVIDENCE_INTELLIGENCE.md`](docs/EVIDENCE_INTELLIGENCE.md).
 
 ```bash
 npm run test:extract   # reads every example_run screenshot with your deployment and prints the fields

@@ -23,6 +23,7 @@ import { CaseOverviewTab } from "@/components/cases/case-overview-tab"
 import { ActionChecklist } from "@/components/action-plans/action-item"
 import { AddEvidenceDialog } from "@/components/evidence/add-evidence-dialog"
 import { EvidenceCard } from "@/components/evidence/evidence-card"
+import { EvidenceIntelligenceTab } from "@/components/evidence-intelligence/evidence-intelligence-tab"
 import { ActivityTimeline } from "@/components/shared/activity-timeline"
 import { ConfirmationDialog } from "@/components/shared/confirmation-dialog"
 import { PageHeader } from "@/components/shared/page-header"
@@ -47,7 +48,7 @@ import { CASE_STATUSES, FRAUD_CATEGORIES } from "@/lib/config/taxonomy"
 import { caseService } from "@/lib/services"
 import type { CaseStatus } from "@/types"
 
-const TABS = ["overview", "analysis", "actions", "evidence", "timeline", "notes"] as const
+const TABS = ["overview", "analysis", "actions", "evidence", "intelligence", "timeline", "notes"] as const
 type Tab = (typeof TABS)[number]
 
 export function CaseDetailView({ id }: { id: string }) {
@@ -201,6 +202,7 @@ export function CaseDetailView({ id }: { id: string }) {
             <TabsTrigger value="evidence">
               Evidence <span className="text-muted-foreground tabular-nums">({evidence.length})</span>
             </TabsTrigger>
+            <TabsTrigger value="intelligence">Evidence Intelligence</TabsTrigger>
             <TabsTrigger value="timeline">Timeline</TabsTrigger>
             <TabsTrigger value="notes">
               Notes <span className="text-muted-foreground tabular-nums">({incident.notes.length})</span>
@@ -248,6 +250,10 @@ export function CaseDetailView({ id }: { id: string }) {
               ))}
             </ul>
           )}
+        </TabsContent>
+
+        <TabsContent value="intelligence">
+          <EvidenceIntelligenceTab incident={incident} />
         </TabsContent>
 
         <TabsContent value="timeline">
