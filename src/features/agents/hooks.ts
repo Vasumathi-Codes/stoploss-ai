@@ -4,6 +4,7 @@ import { useMemo } from "react"
 
 import { useAppStore } from "@/lib/store/app-store"
 import { ANALYSIS_COPY } from "@/lib/config/analysis-copy"
+import { agentProvenance } from "@/lib/plan"
 import type { AgentId, AnalysisEngine } from "@/types"
 
 /**
@@ -36,4 +37,11 @@ export function useTimeline(incidentId?: string, limit?: number) {
     const list = incidentId ? timeline.filter((e) => e.incidentId === incidentId) : timeline
     return limit ? list.slice(0, limit) : list
   }, [timeline, incidentId, limit])
+}
+
+/** Where one agent's current output for a case came from (AI, template fallback, template). */
+export function useAgentProvenance(incidentId: string | undefined, agentId: AgentId) {
+  const findings = useFindings(incidentId, agentId)
+  const engine = useAppStore((s) => (incidentId ? s.incidentEngines[incidentId] : undefined))
+  return agentProvenance(findings, engine)
 }
