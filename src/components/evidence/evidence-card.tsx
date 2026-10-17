@@ -2,7 +2,7 @@
 
 import { useState } from "react"
 import Link from "next/link"
-import { Eye, FlaskConical, ScanText, Trash2 } from "lucide-react"
+import { Eye, FileText, FlaskConical, MonitorSmartphone, ScanText, Trash2 } from "lucide-react"
 import { toast } from "sonner"
 
 import { EvidencePreviewDialog } from "@/components/evidence/evidence-preview-dialog"
@@ -88,9 +88,32 @@ export function EvidenceCard({ item, incident, readInto = incident, layout = "gr
     </div>
   )
 
+  const hasLocalFile = Boolean(item.objectUrl || item.textPreview)
   const meta = (
     <p className="text-xs text-muted-foreground">
-      {item.mimeType.split("/")[1]?.toUpperCase()} · {formatFileSize(item.size)} · {formatDateTime(item.addedAt)}
+      {item.mimeType.split("/")[1]?.toUpperCase()} · {formatFileSize(item.size)} · Added {formatDateTime(item.addedAt)}
+    </p>
+  )
+  // Where the file itself is: only this browser tab ever holds it; the server keeps metadata.
+  const fileStatus = (
+    <p
+      className="flex items-center gap-1 text-[11px] text-muted-foreground"
+      title={
+        hasLocalFile
+          ? "The file is available in this browser tab only. It was not uploaded."
+          : "Only the file's name, type and size are saved. The file itself isn't on this device session."
+      }
+    >
+      {hasLocalFile ? (
+        <MonitorSmartphone aria-hidden className="size-3 text-success" />
+      ) : (
+        <FileText aria-hidden className="size-3" />
+      )}
+      {hasLocalFile
+        ? "File available in this tab"
+        : item.isSample
+          ? "Sample record · details only"
+          : "Details only · file not in this tab"}
     </p>
   )
 
@@ -103,7 +126,7 @@ export function EvidenceCard({ item, incident, readInto = incident, layout = "gr
           <button
             type="button"
             onClick={() => setPreview(true)}
-            className="relative flex h-32 items-center justify-center bg-muted/50"
+            className="relative flex h-28 items-center justify-center bg-muted/40"
             aria-label={`Preview ${item.name}`}
           >
             {isImage ? (
@@ -135,6 +158,7 @@ export function EvidenceCard({ item, incident, readInto = incident, layout = "gr
               </p>
             </div>
             {meta}
+            {fileStatus}
             <div className="mt-auto flex items-center justify-between gap-2 pt-1">
               {incident ? (
                 <Link href={`/cases/${incident.id}`} className="truncate text-xs font-medium text-primary hover:underline">
@@ -164,9 +188,9 @@ export function EvidenceCard({ item, incident, readInto = incident, layout = "gr
           <div className="min-w-0 flex-1">
             <p className="truncate text-sm font-medium" title={item.name}>
               {item.name}
-              {item.isSample && <span className="ml-2 text-[11px] font-normal text-muted-foreground">(sample record)</span>}
             </p>
             {meta}
+            {fileStatus}
           </div>
           {incident && (
             <Link href={`/cases/${incident.id}`} className="hidden text-xs font-medium text-primary hover:underline sm:inline">

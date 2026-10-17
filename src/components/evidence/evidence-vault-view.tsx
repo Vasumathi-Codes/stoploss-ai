@@ -1,6 +1,7 @@
 "use client"
 
 import { useMemo, useState } from "react"
+import { useSearchParams } from "next/navigation"
 import { Copy, LayoutGrid, List, Lock, Package, Vault } from "lucide-react"
 import { toast } from "sonner"
 
@@ -25,7 +26,10 @@ export function EvidenceVaultView() {
   const byId = useMemo(() => new Map(incidents.map((i) => [i.id, i])), [incidents])
   const [query, setQuery] = useState("")
   const [kind, setKind] = useState(ALL)
-  const [caseId, setCaseId] = useState(ALL)
+  const requestedCase = useSearchParams().get("case")
+  const [caseId, setCaseId] = useState(() =>
+    requestedCase && incidents.some((i) => i.id === requestedCase) ? requestedCase : ALL,
+  )
   const [layout, setLayout] = useState<"grid" | "list">("grid")
   const [selected, setSelected] = useState<Set<string>>(new Set())
   const [packageOpen, setPackageOpen] = useState(false)

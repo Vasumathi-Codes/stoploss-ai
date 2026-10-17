@@ -2,7 +2,7 @@
 
 import { useState } from "react"
 import Link from "next/link"
-import { BookOpenText, Building2, Check, Clock, Link2, Play, RotateCcw, Sparkles } from "lucide-react"
+import { ArrowRight, BookOpenText, Building2, Check, Clock, Link2, Play, RotateCcw, Sparkles } from "lucide-react"
 import { toast } from "sonner"
 
 import { ConfirmationDialog } from "@/components/shared/confirmation-dialog"
@@ -21,6 +21,10 @@ interface ActionItemProps {
   action: ActionItemType
   incident?: Incident
   compact?: boolean
+  /** Position in the case's suggested order, shown as a step number. */
+  stepNumber?: number
+  /** The case's next step: gets the primary action. */
+  highlight?: boolean
 }
 
 export function OriginBadge({ origin }: { origin: ActionItemType["origin"] }) {
@@ -35,7 +39,7 @@ export function OriginBadge({ origin }: { origin: ActionItemType["origin"] }) {
   )
 }
 
-export function ActionItem({ action, incident, compact }: ActionItemProps) {
+export function ActionItem({ action, incident, compact, stepNumber, highlight }: ActionItemProps) {
   const siblings = useActions(action.incidentId)
   const [detailsOpen, setDetailsOpen] = useState(false)
   const [confirmOpen, setConfirmOpen] = useState(false)
@@ -59,8 +63,8 @@ export function ActionItem({ action, incident, compact }: ActionItemProps) {
     <div
       className={cn(
         "group rounded-xl border bg-card p-4 transition-colors",
-        done && "bg-card/60",
-        action.status === "in_progress" && "border-primary/40",
+        done && "bg-card/50",
+        (highlight || action.status === "in_progress") && !done && "border-primary/40 bg-primary/[0.04]",
       )}
     >
       <div className="flex items-start gap-3">
@@ -84,9 +88,19 @@ export function ActionItem({ action, incident, compact }: ActionItemProps) {
                 done && "text-muted-foreground line-through decoration-muted-foreground/40",
               )}
             >
+              {stepNumber !== undefined && (
+                <span className="mr-1.5 font-mono text-xs font-semibold text-muted-foreground tabular-nums">
+                  {String(stepNumber).padStart(2, "0")}
+                </span>
+              )}
               {action.title}
             </p>
             <div className="flex flex-wrap gap-1.5">
+              {highlight && !done && (
+                <ToneBadge tone="primary" icon={ArrowRight}>
+                  Next step
+                </ToneBadge>
+              )}
               {action.status === "in_progress" && (
                 <ToneBadge tone="primary" icon={Play}>
                   In progress
@@ -116,14 +130,8 @@ export function ActionItem({ action, incident, compact }: ActionItemProps) {
             <p className="text-xs text-warning">Recommended after: {openPrereqs.map((p) => p.title).join("; ")}</p>
           )}
           <div className="flex flex-wrap gap-2 pt-1">
-            {action.status === "pending" && (
-              <Button size="sm" variant="secondary" onClick={() => actionPlanService.setStatus(action.id, "in_progress")}>
-                <Play aria-hidden />
-                Start
-              </Button>
-            )}
             {!done ? (
-              <Button size="sm" onClick={requestComplete}>
+              <Button size="sm" variant={highlight ? "default" : "outline"} onClick={requestComplete}>
                 <Check aria-hidden />
                 Mark complete
               </Button>
@@ -138,6 +146,12 @@ export function ActionItem({ action, incident, compact }: ActionItemProps) {
               >
                 <RotateCcw aria-hidden />
                 Reopen
+              </Button>
+            )}
+            {action.status === "pending" && (
+              <Button size="sm" variant="ghost" onClick={() => actionPlanService.setStatus(action.id, "in_progress")}>
+                <Play aria-hidden />
+                Start
               </Button>
             )}
             <Button size="sm" variant="ghost" onClick={() => setDetailsOpen(true)}>
@@ -261,22 +275,35 @@ export function ActionChecklist({
   actions,
   incidents,
   compact,
+  numbered,
+  nextId,
   emptyMessage = "No actions yet.",
 }: {
   actions: ActionItemType[]
   incidents?: Incident[]
   compact?: boolean
+  /** Show step numbers (pass actions in plan order). */
+  numbered?: boolean | { start: number }
+  /** Id of the case's next step, which is highlighted. */
+  nextId?: string
   emptyMessage?: string
 }) {
   if (actions.length === 0) return <p className="py-6 text-center text-sm text-muted-foreground">{emptyMessage}</p>
   const byId = incidents ? new Map(incidents.map((i) => [i.id, i])) : undefined
+  const start = typeof numbered === "object" ? numbered.start : 1
   return (
-    <ul className="space-y-3">
-      {actions.map((a) => (
+    <ol className="space-y-3">
+      {actions.map((a, i) => (
         <li key={a.id}>
-          <ActionItem action={a} incident={byId?.get(a.incidentId)} compact={compact} />
+          <ActionItem
+            action={a}
+            incident={byId?.get(a.incidentId)}
+            compact={compact}
+            stepNumber={numbered ? start + i : undefined}
+            highlight={a.id === nextId}
+          />
         </li>
       ))}
-    </ul>
+    </ol>
   )
 }

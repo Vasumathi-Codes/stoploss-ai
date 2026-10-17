@@ -10,14 +10,15 @@ import { RunAnalysisButton } from "@/components/agents/run-analysis-button"
 import { ActivityTimeline } from "@/components/shared/activity-timeline"
 import { PageHeader, SectionHeading } from "@/components/shared/page-header"
 import { EmptyState } from "@/components/shared/states"
-import { AgentStatusBadge, CaseStatusBadge, ToneBadge } from "@/components/shared/status-badges"
+import { AgentStatusBadge, CaseStatusBadge, ProvenanceBadge, ToneBadge } from "@/components/shared/status-badges"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { useAgentState, useAnalysisEngine, useFindings, useTimeline } from "@/features/agents/hooks"
+import { useAgentProvenance, useAgentState, useAnalysisEngine, useFindings, useTimeline } from "@/features/agents/hooks"
+import { useEvidence } from "@/features/evidence/hooks"
 import { useIncidents } from "@/features/cases/hooks"
-import { AGENT_ORDER, AGENTS, agentInputs } from "@/lib/config/agents"
+import { AGENT_ORDER, AGENT_STAGES, AGENTS, agentInputs } from "@/lib/config/agents"
 import { formatTime } from "@/lib/utils/format"
 import type { AgentId, AgentRunState, Incident } from "@/types"
 
@@ -104,14 +105,14 @@ export function AgentsView() {
           title="Orchestration"
           description="Incident runs first, Containment and Evidence run side by side on its findings, and the Recovery Coordinator combines all three. Status is driven by the case's actual data."
         />
-        <ol className="grid gap-3 lg:grid-cols-4">
-          {AGENT_ORDER.map((id, idx) => (
-            <AgentStepRow key={id} index={idx} agentId={id} incident={incident} state={state?.[id]} />
+        <ol className="grid grid-cols-1 gap-3 lg:grid-cols-4">
+          {AGENT_ORDER.map((id) => (
+            <AgentStepRow key={id} agentId={id} incident={incident} state={state?.[id]} />
           ))}
         </ol>
       </section>
 
-      <div className="grid gap-6 lg:grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)]">
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)]">
         <section aria-labelledby="activity" className="space-y-3">
           <SectionHeading id="activity" title="Agent activity" description="Shared timeline for this case (newest first)." />
           <Card className="p-5">
@@ -152,18 +153,12 @@ export function AgentsView() {
   )
 }
 
-function AgentStepRow({
-  index,
-  agentId,
-  incident,
-  state,
-}: {
-  index: number
-  agentId: AgentId
-  incident: Incident
-  state?: AgentRunState
-}) {
+function AgentStepRow({ agentId, incident, state }: { agentId: AgentId; incident: Incident; state?: AgentRunState }) {
   const findings = useFindings(incident.id, agentId)
+  const provenance = useAgentProvenance(incident.id, agentId)
+  const evidence = useEvidence(incident.id)
+  const stage = AGENT_STAGES.findIndex((st) => st.includes(agentId))
+  const parallel = AGENT_STAGES[stage].length > 1
   const Icon = AGENT_ICONS[agentId]
   const warnings = findings.filter(
     (f) => f.source === "unverified_assumption" || (f.items?.length && /gap|missing/i.test(f.title)),
@@ -172,15 +167,26 @@ function AgentStepRow({
   return (
     <li className="flex flex-col gap-3 rounded-xl border bg-card p-4">
       <div className="flex items-center gap-2">
-        <span className="flex size-6 items-center justify-center rounded-full bg-muted text-xs font-semibold">{index + 1}</span>
+        <span className="flex h-6 min-w-6 items-center justify-center rounded-full bg-muted px-1.5 text-xs font-semibold tabular-nums">
+          {stage + 1}
+        </span>
         <Icon aria-hidden className="size-4 text-primary" />
         <p className="text-sm font-semibold">{AGENTS[agentId].name}</p>
       </div>
-      <AgentStatusBadge status={status} />
+      <p className="-mt-1 text-xs text-muted-foreground">
+        Stage {stage + 1} of {AGENT_STAGES.length}
+        {parallel ? " · runs in parallel" : ""}
+      </p>
+      <div className="flex flex-wrap gap-1.5">
+        <AgentStatusBadge status={status} />
+        {status !== "analyzing" && <ProvenanceBadge provenance={provenance} />}
+      </div>
       <dl className="space-y-2 text-xs">
         <div>
           <dt className="text-muted-foreground">Task</dt>
-          <dd className="text-sm">{state?.currentTask}</dd>
+          <dd className="line-clamp-4 text-sm" title={state?.currentTask}>
+            {state?.currentTask}
+          </dd>
         </div>
         <div className="flex gap-4">
           <div>
@@ -206,6 +212,20 @@ function AgentStepRow({
                   .join(", ")}`}
           </dd>
         </div>
+        {agentId === "evidence" && (
+          <div>
+            <dt className="text-muted-foreground">Evidence on record</dt>
+            <dd>
+              {evidence.length === 0 ? (
+                "None yet"
+              ) : (
+                <Link href={`/evidence?case=${incident.id}`} className="text-primary hover:underline">
+                  {evidence.length} {evidence.length === 1 ? "item" : "items"} (file details only — contents are not read)
+                </Link>
+              )}
+            </dd>
+          </div>
+        )}
         {warnings.length > 0 && (
           <div>
             <dt className="text-muted-foreground">Warnings</dt>

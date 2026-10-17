@@ -28,7 +28,7 @@ import { ConfirmationDialog } from "@/components/shared/confirmation-dialog"
 import { PageHeader } from "@/components/shared/page-header"
 import { ProgressIndicator } from "@/components/shared/progress-indicator"
 import { EmptyState } from "@/components/shared/states"
-import { CaseStatusBadge, DemoDataBadge } from "@/components/shared/status-badges"
+import { CaseStatusBadge, DemoDataBadge, OpenPriorityBadge } from "@/components/shared/status-badges"
 import { Button } from "@/components/ui/button"
 import {
   DropdownMenu,
@@ -39,7 +39,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { useActions } from "@/features/action-plans/hooks"
+import { useActions, usePlan } from "@/features/action-plans/hooks"
 import { useTimeline } from "@/features/agents/hooks"
 import { computeProgress, useIncident, useIncidents } from "@/features/cases/hooks"
 import { useEvidence } from "@/features/evidence/hooks"
@@ -54,6 +54,7 @@ export function CaseDetailView({ id }: { id: string }) {
   const incident = useIncident(id)
   const incidents = useIncidents()
   const actions = useActions(id)
+  const plan = usePlan(id)
   const evidence = useEvidence(id)
   const timeline = useTimeline(id)
   const router = useRouter()
@@ -130,6 +131,7 @@ export function CaseDetailView({ id }: { id: string }) {
           <>
             <span className="font-mono text-sm font-medium text-primary">{incident.reference}</span>
             <CaseStatusBadge status={incident.status} />
+            {actions.length > 0 && <OpenPriorityBadge priority={plan.priority} />}
             {incident.isSample && <DemoDataBadge label="Fictional sample case" />}
           </>
         }
@@ -216,10 +218,13 @@ export function CaseDetailView({ id }: { id: string }) {
 
         <TabsContent value="actions" className="space-y-4">
           <p className="text-sm text-muted-foreground">
-            Suggested steps are general guidance. External steps happen outside STOPLOSS AI, so only you can mark them complete.
+            Steps are listed in a suggested order: earlier steps unlock later ones, then by priority. Suggested steps are general
+            guidance; external steps happen outside STOPLOSS AI, so only you can mark them complete.
           </p>
           <ActionChecklist
-            actions={actions}
+            actions={plan.ordered}
+            numbered
+            nextId={plan.next?.id}
             emptyMessage="No action plan yet. Run the analysis from the AI Analysis tab to generate one."
           />
         </TabsContent>

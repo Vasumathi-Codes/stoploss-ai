@@ -12,14 +12,16 @@ import { DemoDataBadge } from "@/components/shared/status-badges"
 import { Button } from "@/components/ui/button"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
+import { usePlansByIncident } from "@/features/action-plans/hooks"
 import { useIncidents, useProgressByIncident } from "@/features/cases/hooks"
 import { CASE_STATUSES, CASE_STATUS_IDS, FRAUD_CATEGORIES, FRAUD_CATEGORY_IDS } from "@/lib/config/taxonomy"
 
-type SortKey = "updated" | "reported" | "amount"
+type SortKey = "updated" | "priority" | "reported" | "amount"
 
 export function CasesView() {
   const incidents = useIncidents()
   const progress = useProgressByIncident()
+  const plans = usePlansByIncident()
   const [query, setQuery] = useState("")
   const [status, setStatus] = useState(ALL)
   const [category, setCategory] = useState(ALL)
@@ -34,10 +36,17 @@ export function CasesView() {
       .filter((i) => !q || i.reference.toLowerCase().includes(q) || i.title.toLowerCase().includes(q))
       .sort((a, b) => {
         if (sort === "amount") return b.amount - a.amount
+        if (sort === "priority") {
+          const pa = plans.get(a.id)?.priority
+          const pb = plans.get(b.id)?.priority
+          return (
+            (pb?.urgent ?? 0) - (pa?.urgent ?? 0) || (pb?.high ?? 0) - (pa?.high ?? 0) || b.updatedAt.localeCompare(a.updatedAt)
+          )
+        }
         if (sort === "reported") return b.reportedAt.localeCompare(a.reportedAt)
         return b.updatedAt.localeCompare(a.updatedAt)
       })
-  }, [incidents, query, status, category, sort])
+  }, [incidents, plans, query, status, category, sort])
 
   const archivedCount = incidents.filter((i) => i.status === "archived").length
 
@@ -48,7 +57,7 @@ export function CasesView() {
         title="My Cases"
         description="Every incident you've reported in STOPLOSS AI. Statuses describe progress in this app, not the state of any bank or police process."
         actions={
-          <Button asChild>
+          <Button asChild className="sm:hidden">
             <Link href="/incidents/new">
               <ShieldAlert aria-hidden />
               Report a New Fraud
@@ -85,6 +94,7 @@ export function CasesView() {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="updated">Latest update</SelectItem>
+                <SelectItem value="priority">Most urgent first</SelectItem>
                 <SelectItem value="reported">Date reported</SelectItem>
                 <SelectItem value="amount">Amount (high to low)</SelectItem>
               </SelectContent>
@@ -145,7 +155,7 @@ export function CasesView() {
         <ul className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
           {filtered.map((i) => (
             <li key={i.id} className="grid">
-              <IncidentCard incident={i} progress={progress.get(i.id) ?? { done: 0, total: 0 }} />
+              <IncidentCard incident={i} progress={progress.get(i.id) ?? { done: 0, total: 0 }} plan={plans.get(i.id)} />
             </li>
           ))}
         </ul>
@@ -153,7 +163,12 @@ export function CasesView() {
         <ul className="space-y-2">
           {filtered.map((i) => (
             <li key={i.id}>
-              <IncidentCard incident={i} layout="list" progress={progress.get(i.id) ?? { done: 0, total: 0 }} />
+              <IncidentCard
+                incident={i}
+                layout="list"
+                progress={progress.get(i.id) ?? { done: 0, total: 0 }}
+                plan={plans.get(i.id)}
+              />
             </li>
           ))}
         </ul>
