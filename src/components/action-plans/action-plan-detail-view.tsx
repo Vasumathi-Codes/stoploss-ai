@@ -8,16 +8,17 @@ import { RunAnalysisButton } from "@/components/agents/run-analysis-button"
 import { PageHeader, SectionHeading } from "@/components/shared/page-header"
 import { ProgressIndicator } from "@/components/shared/progress-indicator"
 import { EmptyState } from "@/components/shared/states"
-import { CaseStatusBadge } from "@/components/shared/status-badges"
+import { CaseStatusBadge, OpenPriorityBadge } from "@/components/shared/status-badges"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
-import { useActions } from "@/features/action-plans/hooks"
+import { useActions, usePlan } from "@/features/action-plans/hooks"
 import { computeProgress, useIncident } from "@/features/cases/hooks"
 import { FRAUD_CATEGORIES } from "@/lib/config/taxonomy"
 
 export function ActionPlanDetailView({ id }: { id: string }) {
   const incident = useIncident(id)
   const actions = useActions(id)
+  const plan = usePlan(id)
 
   if (!incident) {
     return (
@@ -51,6 +52,7 @@ export function ActionPlanDetailView({ id }: { id: string }) {
           <>
             <span className="font-mono text-sm font-medium text-primary">{incident.reference}</span>
             <CaseStatusBadge status={incident.status} />
+            {actions.length > 0 && <OpenPriorityBadge priority={plan.priority} />}
           </>
         }
         title={`Action plan: ${incident.title}`}
@@ -80,21 +82,18 @@ export function ActionPlanDetailView({ id }: { id: string }) {
         />
       ) : (
         <>
-          <section className="space-y-3" aria-labelledby="suggested">
+          <section className="space-y-3" aria-labelledby="open-steps">
             <SectionHeading
-              id="suggested"
-              title="Suggested by STOPLOSS AI"
-              description="Steps you can take yourself, based on configured guidance."
+              id="open-steps"
+              title="Steps to take"
+              description="In suggested order: steps that unlock others come first, then by priority. “External process” steps happen with your bank or authorities — STOPLOSS AI can't see or verify them."
             />
-            <ActionChecklist actions={suggested} emptyMessage="No suggested steps left open." />
-          </section>
-          <section className="space-y-3" aria-labelledby="external">
-            <SectionHeading
-              id="external"
-              title="External processes"
-              description="These happen with your bank or authorities. STOPLOSS AI can't see or verify them."
+            <ActionChecklist
+              actions={plan.ordered.filter((a) => a.status !== "completed")}
+              numbered={{ start: completed.length + 1 }}
+              nextId={plan.next?.id}
+              emptyMessage="No steps left open."
             />
-            <ActionChecklist actions={external} emptyMessage="No external steps left open." />
           </section>
           <section className="space-y-3" aria-labelledby="completed">
             <SectionHeading

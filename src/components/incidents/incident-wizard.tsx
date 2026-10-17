@@ -135,18 +135,19 @@ export function IncidentWizard() {
   const confirmError = form.formState.errors.confirmAccurate?.message
 
   return (
-    <div className="grid gap-6 lg:grid-cols-[240px_minmax(0,1fr)]">
+    <div className="grid grid-cols-1 gap-6 lg:grid-cols-[240px_minmax(0,1fr)]">
       <nav aria-label="Report progress" className="lg:sticky lg:top-24 lg:self-start">
-        <ol className="flex gap-2 overflow-x-auto pb-1 lg:flex-col lg:gap-1">
+        <ol className="grid grid-cols-4 gap-1 lg:flex lg:flex-col">
           {STEPS.map((s, i) => {
             const state = i < step ? "done" : i === step ? "current" : "upcoming"
             return (
-              <li
-                key={s.title}
-                className="min-w-[140px] flex-1 lg:min-w-0"
-                aria-current={state === "current" ? "step" : undefined}
-              >
-                <div className={cn("flex items-center gap-3 rounded-xl p-2.5", state === "current" && "bg-primary/10")}>
+              <li key={s.title} className="min-w-0" aria-current={state === "current" ? "step" : undefined}>
+                <div
+                  className={cn(
+                    "flex flex-col items-center gap-1.5 rounded-xl p-2 text-center lg:flex-row lg:gap-3 lg:p-2.5 lg:text-left",
+                    state === "current" && "bg-primary/10",
+                  )}
+                >
                   <span
                     className={cn(
                       "flex size-7 shrink-0 items-center justify-center rounded-full border text-xs font-semibold",
@@ -157,8 +158,13 @@ export function IncidentWizard() {
                   >
                     {state === "done" ? <Check aria-hidden className="size-4" /> : i + 1}
                   </span>
-                  <span className="min-w-0">
-                    <span className={cn("block text-sm font-medium", state === "upcoming" && "text-muted-foreground")}>
+                  <span className="w-full min-w-0">
+                    <span
+                      className={cn(
+                        "block text-[11px] leading-tight font-medium sm:text-xs lg:text-sm",
+                        state === "upcoming" && "text-muted-foreground",
+                      )}
+                    >
                       {s.title}
                     </span>
                     <span className="hidden text-xs text-muted-foreground lg:block">{s.description}</span>

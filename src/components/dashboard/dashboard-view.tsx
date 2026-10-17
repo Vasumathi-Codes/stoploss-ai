@@ -25,16 +25,19 @@ import { PageHeader, SectionHeading } from "@/components/shared/page-header"
 import { ProgressIndicator } from "@/components/shared/progress-indicator"
 import { StatCard } from "@/components/shared/stat-card"
 import { EmptyState } from "@/components/shared/states"
-import { CaseStatusBadge, DemoDataBadge } from "@/components/shared/status-badges"
+import { CaseStatusBadge, DemoDataBadge, OpenPriorityBadge } from "@/components/shared/status-badges"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { useActions } from "@/features/action-plans/hooks"
-import { useAgentState, useTimeline } from "@/features/agents/hooks"
+import { useActions, usePlan } from "@/features/action-plans/hooks"
+import { useAgentState, useAnalysisEngine, useTimeline } from "@/features/agents/hooks"
 import { useActiveIncidents, useIncidents, useProfile, useProgressByIncident } from "@/features/cases/hooks"
 import { useEvidence } from "@/features/evidence/hooks"
 import { AGENT_ORDER } from "@/lib/config/agents"
 import { FRAUD_CATEGORIES } from "@/lib/config/taxonomy"
 import { formatCurrency, formatDateTime } from "@/lib/utils/format"
+
+/** Open steps shown on the dashboard; the full plan is one click away. */
+const PLAN_PREVIEW = 4
 
 export function DashboardView() {
   const profile = useProfile()
@@ -43,23 +46,26 @@ export function DashboardView() {
   const allActions = useActions()
   const evidence = useEvidence()
   const progress = useProgressByIncident()
-  const recent = useTimeline(undefined, 7)
+  const recent = useTimeline(undefined, 6)
   const [uploadOpen, setUploadOpen] = useState(false)
 
   const current = active[0]
-  const currentActions = useActions(current?.id)
+  const plan = usePlan(current?.id)
   const agentState = useAgentState(current?.id)
   const latestEvent = useTimeline(current?.id, 1)[0]
+  const { engine, model } = useAnalysisEngine(current?.id)
 
   const stats = useMemo(() => {
     const activeIds = new Set(active.map((i) => i.id))
+    const open = allActions.filter((a) => activeIds.has(a.incidentId) && a.status !== "completed")
     return {
-      pending: allActions.filter((a) => activeIds.has(a.incidentId) && a.status !== "completed").length,
+      pending: open.length,
+      urgent: open.filter((a) => a.priority === "urgent").length,
       completed: allActions.filter((a) => a.status === "completed").length,
     }
   }, [active, allActions])
 
-  const openActions = currentActions.filter((a) => a.status !== "completed").slice(0, 4)
+  const openSteps = plan.ordered.filter((a) => a.status !== "completed")
   const p = current ? (progress.get(current.id) ?? { done: 0, total: 0 }) : { done: 0, total: 0 }
 
   return (
@@ -67,9 +73,10 @@ export function DashboardView() {
       <PageHeader
         eyebrow={<DemoDataBadge />}
         title={`Welcome back, ${profile.displayName.split(" ")[0]}`}
-        description="When every minute matters, know what to do next. Here's where your cases stand and what to focus on now."
+        description="Here's where your cases stand and what to focus on next."
         actions={
-          <Button asChild size="lg" className="h-10 px-4">
+          // The header shows this button from the `sm` breakpoint up.
+          <Button asChild size="lg" className="h-10 px-4 sm:hidden">
             <Link href="/incidents/new">
               <ShieldAlert aria-hidden />
               Report a New Fraud
@@ -80,28 +87,28 @@ export function DashboardView() {
 
       <section aria-label="Overview" className="grid grid-cols-2 gap-3 md:gap-4 xl:grid-cols-4">
         <StatCard
-          label="Active Cases"
+          label="Active cases"
           value={active.length}
-          hint={`${incidents.length} cases in total`}
+          hint={`${incidents.length} in total`}
           icon={FolderKanban}
           tone="primary"
         />
         <StatCard
-          label="Action Items Pending"
+          label="Open steps"
           value={stats.pending}
-          hint="Across your active cases"
+          hint={stats.urgent > 0 ? `${stats.urgent} marked urgent` : "None marked urgent"}
           icon={ListTodo}
-          tone="warning"
+          tone={stats.urgent > 0 ? "danger" : "warning"}
         />
         <StatCard
-          label="Evidence Items Collected"
+          label="Evidence items"
           value={evidence.length}
           hint="File details saved with your cases"
           icon={Paperclip}
           tone="info"
         />
         <StatCard
-          label="Completed Response Steps"
+          label="Steps completed"
           value={stats.completed}
           hint="Marked complete by you"
           icon={CheckCircle2}
@@ -110,49 +117,52 @@ export function DashboardView() {
       </section>
 
       <div className="grid gap-6 xl:grid-cols-3">
-        <div className="space-y-6 xl:col-span-2">
+        <div className="min-w-0 space-y-6 xl:col-span-2">
           {current ? (
             <Card className="gap-0 overflow-hidden p-0">
-              <div className="border-b bg-gradient-to-br from-primary/12 via-transparent to-transparent p-5 md:p-6">
+              <div className="p-5 md:p-6">
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div className="min-w-0 space-y-1">
-                    <p className="text-xs font-semibold tracking-wide text-primary uppercase">
-                      Most recently updated active case
-                    </p>
+                    <p className="text-xs font-medium text-muted-foreground">Most recently updated case</p>
                     <h2 className="text-xl font-semibold tracking-tight">{current.title}</h2>
                     <p className="text-sm text-muted-foreground">
-                      {current.reference} · {FRAUD_CATEGORIES[current.category].label}
+                      <span className="font-mono text-xs">{current.reference}</span> · {FRAUD_CATEGORIES[current.category].label}
                     </p>
                   </div>
-                  <CaseStatusBadge status={current.status} />
+                  <div className="flex flex-wrap gap-1.5">
+                    <CaseStatusBadge status={current.status} />
+                    {plan.ordered.length > 0 && <OpenPriorityBadge priority={plan.priority} />}
+                  </div>
                 </div>
-                <dl className="mt-5 grid grid-cols-2 gap-4 text-sm md:grid-cols-4">
-                  <div>
-                    <dt className="text-xs text-muted-foreground">Approx. amount reported</dt>
+                <dl className="mt-5 grid grid-cols-2 gap-x-4 gap-y-4 text-sm md:grid-cols-4">
+                  <div className="min-w-0">
+                    <dt className="text-xs text-muted-foreground">Amount reported</dt>
                     <dd className="text-lg font-semibold tabular-nums">{formatCurrency(current.amount, current.currency)}</dd>
                   </div>
-                  <div>
+                  <div className="min-w-0">
                     <dt className="text-xs text-muted-foreground">Reported</dt>
                     <dd>{formatDateTime(current.reportedAt)}</dd>
                   </div>
-                  <div>
+                  <div className="min-w-0">
                     <dt className="flex items-center gap-1 text-xs text-muted-foreground">
                       <Hourglass aria-hidden className="size-3" />
-                      Elapsed since you reported
+                      Since you reported
                     </dt>
                     <dd>
                       <ElapsedSince iso={current.reportedAt} />
                     </dd>
                   </div>
-                  <div>
+                  <div className="min-w-0">
                     <dt className="text-xs text-muted-foreground">Latest event</dt>
-                    <dd className="line-clamp-2">{latestEvent?.title ?? "—"}</dd>
+                    <dd className="line-clamp-2" title={latestEvent?.title}>
+                      {latestEvent?.title ?? "—"}
+                    </dd>
                   </div>
                 </dl>
               </div>
-              <div className="flex flex-col gap-4 p-5 md:flex-row md:items-center md:p-6">
+              <div className="flex flex-col gap-4 border-t bg-muted/30 px-5 py-4 md:flex-row md:items-center md:px-6">
                 <ProgressIndicator done={p.done} total={p.total} className="flex-1" />
-                <Button asChild variant="secondary">
+                <Button asChild variant="secondary" size="sm">
                   <Link href={`/cases/${current.id}`}>
                     Open case
                     <ArrowRight aria-hidden />
@@ -174,25 +184,27 @@ export function DashboardView() {
           )}
 
           {current && (
-            <section aria-labelledby="immediate-actions" className="space-y-3">
+            <section aria-labelledby="next-steps" className="space-y-3">
               <SectionHeading
-                id="immediate-actions"
-                title="Immediate actions"
-                description={`Prioritised for ${current.reference}. General guidance — adapt it to your situation.`}
+                id="next-steps"
+                title="What to do next"
+                description={`${current.reference} · steps in suggested order. General guidance — adapt it to your situation.`}
                 action={
                   <Button asChild variant="ghost" size="sm">
                     <Link href={`/action-plans/${current.id}`}>
-                      Full action plan
+                      {openSteps.length > PLAN_PREVIEW ? `All ${plan.ordered.length} steps` : "Full plan"}
                       <ArrowRight aria-hidden />
                     </Link>
                   </Button>
                 }
               />
               <ActionChecklist
-                actions={openActions}
+                actions={openSteps.slice(0, PLAN_PREVIEW)}
+                numbered={{ start: plan.ordered.length - openSteps.length + 1 }}
+                nextId={plan.next?.id}
                 compact
                 emptyMessage={
-                  currentActions.length === 0
+                  plan.ordered.length === 0
                     ? "No action plan yet. Run the agent analysis below to generate one."
                     : "All steps for this case are marked complete."
                 }
@@ -201,30 +213,31 @@ export function DashboardView() {
           )}
         </div>
 
-        <div className="space-y-6">
+        <div className="min-w-0 space-y-6">
           <Card>
             <CardHeader>
               <CardTitle>Quick actions</CardTitle>
             </CardHeader>
             <CardContent className="grid grid-cols-2 gap-2">
-              <QuickAction href="/incidents/new" icon={ShieldAlert} label="Report a New Fraud" />
-              <QuickAction href="/cases" icon={FolderOpen} label="Open My Cases" />
-              <button
-                type="button"
-                onClick={() => setUploadOpen(true)}
-                className="flex flex-col items-start gap-2 rounded-xl border bg-background/40 p-3 text-left text-sm font-medium transition-colors hover:border-primary/40 hover:bg-accent/40"
-              >
-                <Upload aria-hidden className="size-4.5 text-primary" />
-                Upload Evidence
+              <QuickAction href="/incidents/new" icon={ShieldAlert} label="Report a new fraud" />
+              <QuickAction href="/cases" icon={FolderOpen} label="Open my cases" />
+              <button type="button" onClick={() => setUploadOpen(true)} className={QUICK_ACTION_CLASS}>
+                <Upload aria-hidden className="size-4 text-primary" />
+                Upload evidence
               </button>
-              <QuickAction href="/reporting" icon={Landmark} label="View Official Reporting Channels" />
+              <QuickAction href="/reporting" icon={Landmark} label="Official reporting channels" />
             </CardContent>
           </Card>
           <AddEvidenceDialog open={uploadOpen} onOpenChange={setUploadOpen} incidentId={undefined} hideTrigger />
 
           <Card>
-            <CardHeader>
+            <CardHeader className="flex flex-row items-center justify-between">
               <CardTitle>Recent activity</CardTitle>
+              {current && (
+                <Link href="/agents" className="text-xs font-medium text-primary hover:underline">
+                  View all
+                </Link>
+              )}
             </CardHeader>
             <CardContent>
               {recent.length ? (
@@ -242,12 +255,16 @@ export function DashboardView() {
           <SectionHeading
             id="ai-team"
             title="AI Emergency Team"
-            description={`Simulated demo agents working on ${current.reference}. No AI model is called.`}
+            description={
+              engine === "foundry"
+                ? `Agents on Microsoft Foundry${model ? ` (${model})` : ""} working on ${current.reference}. AI output is labelled and unverified.`
+                : `Template agents working on ${current.reference}. No AI model is called.`
+            }
             action={
-              <div className="flex gap-2">
+              <div className="flex flex-wrap gap-2">
                 <RunAnalysisButton incident={current} />
                 <Button asChild variant="ghost" size="sm">
-                  <Link href="/agents">
+                  <Link href={`/agents?case=${current.id}`}>
                     Agent activity
                     <ArrowRight aria-hidden />
                   </Link>
@@ -266,6 +283,9 @@ export function DashboardView() {
   )
 }
 
+const QUICK_ACTION_CLASS =
+  "flex min-h-20 flex-col items-start justify-between gap-2 rounded-lg border bg-background/40 p-3 text-left text-sm font-medium transition-colors hover:border-primary/40 hover:bg-accent/40"
+
 function QuickAction({
   href,
   icon: Icon,
@@ -276,11 +296,8 @@ function QuickAction({
   label: string
 }) {
   return (
-    <Link
-      href={href}
-      className="flex flex-col items-start gap-2 rounded-xl border bg-background/40 p-3 text-sm font-medium transition-colors hover:border-primary/40 hover:bg-accent/40"
-    >
-      <Icon aria-hidden className="size-4.5 text-primary" />
+    <Link href={href} className={QUICK_ACTION_CLASS}>
+      <Icon aria-hidden className="size-4 text-primary" />
       {label}
     </Link>
   )
