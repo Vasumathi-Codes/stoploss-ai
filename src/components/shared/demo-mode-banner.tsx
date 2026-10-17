@@ -43,7 +43,8 @@ export function DemoModeBanner() {
               )}
               <li>Cases and notes are saved in the app&apos;s database. Settings → Reset demo data restores the sample cases.</li>
               <li>
-                Evidence files never leave your device — only their names, types and sizes are saved — and are not analysed.
+                Evidence files stay on your device — only their names, types and sizes are saved. A screenshot is read by AI only
+                when you choose “Read details” on it, and the image is never stored.
               </li>
               <li>
                 STOPLOSS AI never contacts your bank, files a complaint or freezes an account, and cannot promise that money will

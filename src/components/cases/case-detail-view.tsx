@@ -238,7 +238,7 @@ export function CaseDetailView({ id }: { id: string }) {
             <ul className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
               {evidence.map((e) => (
                 <li key={e.id}>
-                  <EvidenceCard item={e} />
+                  <EvidenceCard item={e} readInto={incident} />
                 </li>
               ))}
             </ul>

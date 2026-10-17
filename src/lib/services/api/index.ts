@@ -2,9 +2,11 @@
 
 import { toast } from "sonner"
 
+import { prepareScreenshot } from "@/lib/images/prepare-screenshot"
 import { getActionTemplates } from "@/lib/playbooks"
 import { applySnapshot, type LocalFileData, useAppStore } from "@/lib/store/app-store"
 import type { EvidenceMeta } from "@/lib/validation/api"
+import type { ScreenshotReading } from "@/types"
 
 import type {
   ActionPlanService,
@@ -13,6 +15,7 @@ import type {
   CaseService,
   DemoService,
   EvidenceService,
+  ExtractionService,
   IncidentService,
   LocalEvidenceFile,
   ProfileService,
@@ -158,7 +161,12 @@ export const incidentService: IncidentService = {
       incidentId: string
       evidenceIds: string[]
       snapshot: AppSnapshot
-    }>("POST", "/incidents", { ...input, transactionRef: input.transactionRef || undefined, evidence: toMeta(files) })
+    }>("POST", "/incidents", {
+      ...input,
+      transactionRef: input.transactionRef || undefined,
+      counterparty: input.counterparty || undefined,
+      evidence: toMeta(files),
+    })
     rememberLocalFiles(evidenceIds, files)
     applySnapshot(snapshot)
     const incident = snapshot.incidents.find((i) => i.id === incidentId)
@@ -173,6 +181,7 @@ export const caseService: CaseService = {
   addNote: (incidentId, body) => mutate("POST", `/incidents/${incidentId}/notes`, { body }),
   removeNote: (incidentId, noteId) => mutate("DELETE", `/incidents/${incidentId}/notes/${noteId}`),
   setTransactionRef: (incidentId, ref) => mutate("PATCH", `/incidents/${incidentId}`, { transactionRef: ref }),
+  updateDetails: (incidentId, patch) => mutate("PATCH", `/incidents/${incidentId}`, patch),
 }
 
 export const evidenceService: EvidenceService = {
@@ -204,6 +213,14 @@ export const evidenceService: EvidenceService = {
 export const actionPlanService: ActionPlanService = {
   setStatus: (actionId, status) => mutate("PATCH", `/actions/${actionId}`, { status }),
   suggestFirstAction: (incident) => getActionTemplates(incident)[0],
+}
+
+export const extractionService: ExtractionService = {
+  async readScreenshot(file) {
+    const image = await prepareScreenshot(file)
+    const { result } = await request<{ result: ScreenshotReading }>("POST", "/extract", image)
+    return result
+  },
 }
 
 export const profileService: ProfileService = {

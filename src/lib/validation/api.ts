@@ -5,7 +5,7 @@
 import { z } from "zod"
 
 import { CASE_STATUS_IDS, CURRENCIES, FRAUD_CATEGORY_IDS } from "@/lib/config/taxonomy"
-import { CARD_NUMBER_PATTERN, noSecrets } from "@/lib/validation/incident"
+import { CARD_NUMBER_PATTERN, counterpartyField, noSecrets } from "@/lib/validation/incident"
 import type { CaseStatus, Currency, FraudCategory } from "@/types"
 
 const triState = z.enum(["yes", "no", "unsure"])
@@ -39,6 +39,7 @@ export const createIncidentSchema = z.object({
   occurredAt: z.iso.datetime().refine((v) => new Date(v).getTime() <= Date.now() + 5 * 60_000, "Date can't be in the future"),
   paymentMethod: z.string().trim().min(1).max(60),
   transactionRef: transactionRef.optional(),
+  counterparty: counterpartyField.pipe(z.string().min(3)).optional(),
   hasAccountAccess: triState,
   ongoing: triState.optional(),
   evidence: z.array(evidenceMetaSchema).max(10).default([]),
@@ -48,8 +49,9 @@ export const updateIncidentSchema = z
   .object({
     status: z.enum(CASE_STATUS_IDS as [CaseStatus, ...CaseStatus[]]).optional(),
     transactionRef: transactionRef.optional(),
+    counterparty: counterpartyField.pipe(z.string().min(3)).optional(),
   })
-  .refine((v) => v.status !== undefined || v.transactionRef !== undefined, "Nothing to update")
+  .refine((v) => v.status !== undefined || v.transactionRef !== undefined || v.counterparty !== undefined, "Nothing to update")
 
 export const noteBodySchema = z.object({
   body: z.string().trim().min(2).max(1000).refine(noSecrets, "Must not contain PINs, OTPs or passwords"),

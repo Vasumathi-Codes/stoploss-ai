@@ -17,6 +17,7 @@ export interface IncidentSummaryData {
   occurredAt: string
   paymentMethod: string
   transactionRef?: string
+  counterparty?: string
   hasAccountAccess: TriState
   ongoing?: TriState
 }
@@ -75,6 +76,7 @@ export function IncidentSummary({
             label="Transaction reference"
             value={data.transactionRef || <span className="text-muted-foreground">Not provided</span>}
           />
+          <Row label="Money sent to" value={data.counterparty || <span className="text-muted-foreground">Not provided</span>} />
           <Row label="Still have account access?" value={TRI_LABEL[data.hasAccountAccess]} />
           <Row
             label="Still happening?"

@@ -36,25 +36,26 @@ incidents 1─* timeline_events
 
 A reported fraud case.
 
-| Column           | Type          | Notes                            |
-| ---------------- | ------------- | -------------------------------- |
-| id               | uuid PK       |                                  |
-| reference        | varchar(20)   | unique, e.g. `SL-2610-4821`      |
-| userId           | uuid FK       | → users                          |
-| title            | varchar(120)  |                                  |
-| category         | FraudCategory |                                  |
-| description      | varchar(2000) |                                  |
-| amount           | decimal(14,2) |                                  |
-| currency         | Currency      | default `INR`                    |
-| occurredAt       | timestamptz   |                                  |
-| reportedAt       | timestamptz   | default now                      |
-| updatedAt        | timestamptz   | auto                             |
-| paymentMethod    | varchar(60)   |                                  |
-| transactionRef   | varchar(60)?  | UTR / RRN; card numbers rejected |
-| hasAccountAccess | TriState      |                                  |
-| ongoing          | TriState?     |                                  |
-| status           | CaseStatus    | default `reported`               |
-| isSample         | boolean       | true for seeded fictional cases  |
+| Column           | Type          | Notes                                                                 |
+| ---------------- | ------------- | --------------------------------------------------------------------- |
+| id               | uuid PK       |                                                                       |
+| reference        | varchar(20)   | unique, e.g. `SL-2610-4821`                                           |
+| userId           | uuid FK       | → users                                                               |
+| title            | varchar(120)  |                                                                       |
+| category         | FraudCategory |                                                                       |
+| description      | varchar(2000) |                                                                       |
+| amount           | decimal(14,2) |                                                                       |
+| currency         | Currency      | default `INR`                                                         |
+| occurredAt       | timestamptz   |                                                                       |
+| reportedAt       | timestamptz   | default now                                                           |
+| updatedAt        | timestamptz   | auto                                                                  |
+| paymentMethod    | varchar(60)   |                                                                       |
+| transactionRef   | varchar(60)?  | UTR / RRN; card numbers rejected                                      |
+| counterparty     | varchar(120)? | Where the money went: UPI ID, phone or account; card numbers rejected |
+| hasAccountAccess | TriState      |                                                                       |
+| ongoing          | TriState?     |                                                                       |
+| status           | CaseStatus    | default `reported`                                                    |
+| isSample         | boolean       | true for seeded fictional cases                                       |
 
 Indexes: `(userId, status)`, `(userId, updatedAt desc)`
 

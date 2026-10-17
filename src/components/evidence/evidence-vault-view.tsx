@@ -76,7 +76,10 @@ export function EvidenceVaultView() {
           <p className="font-medium">How evidence is handled in this demo</p>
           <ul className="grid list-disc gap-x-6 gap-y-1 pl-5 text-muted-foreground md:grid-cols-2">
             <li>Only each file&apos;s name, type and size is saved with your case.</li>
-            <li>The files themselves stay on your device and are never uploaded.</li>
+            <li>
+              The files themselves stay on your device. A screenshot is sent to be read only if you choose “Read details”, and is
+              never stored.
+            </li>
             <li>Previews work only in the tab where you added the file.</li>
             <li>Production needs secure storage, access control, encryption and retention policies.</li>
           </ul>

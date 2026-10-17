@@ -91,7 +91,8 @@ src/
 | `GET /api/state`                          | Everything the UI shows for the current user                                |
 | `GET /api/health`                         | Database connectivity check                                                 |
 | `POST /api/incidents`                     | Create a case (with evidence metadata)                                      |
-| `PATCH /api/incidents/:id`                | Change status or add the transaction reference                              |
+| `PATCH /api/incidents/:id`                | Change status, or add the transaction reference / recipient (counterparty)  |
+| `POST /api/extract`                       | Read payment details from one screenshot (Foundry; nothing stored)          |
 | `POST /api/incidents/:id/analysis`        | Start or rerun the agents (202, runs after response)                        |
 | `POST /api/incidents/:id/notes`           | Add a note                                                                  |
 | `DELETE /api/incidents/:id/notes/:noteId` | Delete a note                                                               |
@@ -107,14 +108,14 @@ Mutations respond with `{ snapshot }` (the same shape as `GET /api/state`) so th
 
 - **Service boundary.** Components write only through `@/lib/services`, which calls the API. Pages never import Prisma or a vendor SDK.
 - **Agents.** `src/server/analysis.ts` runs the four agents after the response (`after()`) — Incident, then Containment and Evidence in parallel, then Recovery (`src/server/pipeline.ts`) — writing agent states, findings, actions and timeline events as it goes; the client polls `/api/state` while a run is in progress. Starting a run while one is live returns 409; runs interrupted by a restart are marked failed and can be rerun. With Foundry configured, each agent is a model call (`src/server/foundry`), recorded with `engine: "foundry"`, the deployment and the prompt version.
-- **Privacy.** Evidence files never leave the browser — only name, type and size are sent. Previews exist only in the tab where the file was added. Incident data is not written to browser storage; only UI preferences persist in `localStorage`.
+- **Privacy.** Evidence files stay in the browser — only name, type and size are sent. The one exception is screenshot reading, which the person starts per image (see below). Previews exist only in the tab where the file was added. Incident data is not written to browser storage; only UI preferences persist in `localStorage`.
 - **Official resources** are defined in `lib/config/official-resources.ts` and seeded into the database. All are marked _not yet verified_. Verify every URL and number before production and record real verification dates.
 
 ## Known limitations
 
 - No authentication yet: every request acts as a single demo user (`src/server/context.ts`).
 - No file storage: evidence previews are lost when the tab closes (the metadata stays).
-- Without Foundry configured, agents use fixed templates. Neither engine reads evidence file contents.
+- Without Foundry configured, agents use fixed templates. The agents never read evidence file contents; only the opt-in screenshot reader does, one image at a time.
 - Learning content and resource entries need review by qualified people before launch.
 
 ## Microsoft Foundry
@@ -149,3 +150,29 @@ npm run test:foundry   # ONE live call with a fictional case, to check your endp
 **Why the Responses API rather than hosted Foundry agents?** Each agent is a stateless call with its own instructions and a strict output schema, sent with `store: false`, so no case data stays in Foundry and there is nothing to provision or clean up. All four agents share one deployment. Registering them as Foundry prompt agents (`@azure/ai-projects`, `agents.createVersion`) is a later option if you want them visible and traced in the portal.
 
 Sample cases keep their seeded template analysis until you rerun them.
+
+### Screenshot reading
+
+With Foundry configured, image evidence (PNG, JPEG) gets a **Read details** button — in the report
+wizard's evidence step and on evidence cards in a case. It fills in the amount, date and time,
+transaction reference (UTR / RRN), recipient (UPI ID, phone or account) and payment method.
+
+1. The person clicks **Read details** and confirms a consent note. Nothing is sent before that.
+2. The browser downscales the image to at most 1600 px and re-encodes it as JPEG, which also strips
+   metadata such as location (`src/lib/images/prepare-screenshot.ts`).
+3. `POST /api/extract` sends it once to the vision model with strict JSON-schema output and
+   `store: false` (`src/server/foundry/extract.ts`). The image is never saved or logged; logs carry only
+   the Foundry response id. Limit: `SCREENSHOT_MAX_READS_PER_HOUR` per user (default 30).
+4. Every field is re-validated on the server. References that look like card numbers, values containing
+   OTPs/PINs, the person's own masked account, impossible or future dates are dropped, not shown. Text
+   in the image is treated as data (prompt-injection guard).
+5. The person sees what was found, with warnings (OTP or card number visible, not a payment record,
+   money received rather than sent), ticks the details to use and confirms. In a case, only the
+   reference and recipient can be updated; amount and date stay as reported.
+
+Test material: [`example_run/`](example_run/README.md) has fictional screenshots, a statement PDF and
+expected results.
+
+```bash
+npm run test:extract   # reads every example_run screenshot with your deployment and prints the fields
+```

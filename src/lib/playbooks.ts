@@ -258,6 +258,7 @@ export interface AnalysisContext {
 export function getMissingInformation({ incident, evidence }: AnalysisContext) {
   const missing: string[] = []
   if (!incident.transactionRef) missing.push("Transaction reference (UTR/RRN)")
+  if (!incident.counterparty) missing.push("Where the money went (UPI ID, phone number or account)")
   if (evidence.length === 0) missing.push("Any screenshots or documents")
   if (incident.hasAccountAccess === "unsure") missing.push("Whether you still have access to the affected account")
   if (incident.description.trim().length < 60) missing.push("A little more detail about how the contact started")
@@ -333,6 +334,7 @@ export function buildFindings(agentId: AgentId, ctx: AnalysisContext): FindingDr
     case "evidence": {
       const gaps: string[] = []
       if (!incident.transactionRef) gaps.push("Transaction reference (UTR/RRN) not yet provided")
+      if (!incident.counterparty) gaps.push("Recipient UPI ID, phone number or account not yet provided")
       if (!evidence.some((e) => e.kind === "image")) gaps.push("No screenshots added yet")
       if (!evidence.some((e) => e.kind === "pdf")) gaps.push("No bank statement or PDF document added (optional)")
       return [
@@ -375,6 +377,7 @@ export function buildFindings(agentId: AgentId, ctx: AnalysisContext): FindingDr
         `Date and time: ${formatDateTime(incident.occurredAt)}`,
         `Payment method: ${incident.paymentMethod}`,
         incident.transactionRef ? `Transaction reference: ${incident.transactionRef}` : "Transaction reference: not provided",
+        incident.counterparty ? `Money sent to: ${incident.counterparty}` : "Money sent to: not provided",
       ]
       return [
         {

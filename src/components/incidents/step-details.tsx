@@ -198,6 +198,21 @@ export function StepDetails({ form }: { form: UseFormReturn<IncidentFormValues> 
         </FormField>
 
         <FormField
+          id="counterparty"
+          label="Money sent to"
+          optional
+          hint="The UPI ID, phone number or account the money went to, as shown in your payment app or bank SMS."
+          error={errors.counterparty?.message}
+        >
+          <Input
+            {...register("counterparty")}
+            {...fieldA11y("counterparty", errors.counterparty?.message, true)}
+            placeholder="e.g. name@okbank or 98765 43210"
+            autoComplete="off"
+          />
+        </FormField>
+
+        <FormField
           id="hasAccountAccess"
           label="Do you still have access to the affected account?"
           error={errors.hasAccountAccess?.message}

@@ -9,6 +9,7 @@ export {
   caseService,
   demoService,
   evidenceService,
+  extractionService,
   incidentService,
   profileService,
 } from "./api"

@@ -82,6 +82,10 @@ export function CaseOverviewTab({
                 label="Transaction reference"
                 value={incident.transactionRef ?? <span className="text-muted-foreground">Not provided</span>}
               />
+              <Item
+                label="Money sent to"
+                value={incident.counterparty ?? <span className="text-muted-foreground">Not provided</span>}
+              />
               <Item label="Account access" value={TRI[incident.hasAccountAccess]} />
               <Item label="Still happening" value={incident.ongoing ? TRI[incident.ongoing] : "Not answered"} />
               <Item label="Evidence items" value={evidenceCount} />

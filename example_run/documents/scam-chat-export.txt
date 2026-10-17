@@ -1,0 +1,10 @@
+FICTIONAL TEST FILE - STOPLOSS AI example_run - not a real conversation
+
+[15/10/26, 14:31:02] Buyer - Vikram: Hi, is the sofa still available? I will take it for 18,500, no bargaining
+[15/10/26, 14:32:10] Priya: Yes available. You can come see it
+[15/10/26, 14:35:44] Buyer - Vikram: I am in army, posted outside. I will pay advance by UPI. I am sending a request, just approve it to RECEIVE money
+[15/10/26, 14:36:30] Buyer - Vikram: Request sent from quickbuyer77@okdemo. Enter your UPI PIN to receive Rs 18,500
+[15/10/26, 14:52:58] Priya: Done. But money got debited from my account??
+[15/10/26, 14:53:40] Buyer - Vikram: Technical issue sir, approve one more request I will return double
+[15/10/26, 14:58:12] Priya: Hello? Please return my money
+[15/10/26, 15:20:05] Priya: Why are you not answering?
