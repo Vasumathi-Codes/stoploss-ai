@@ -52,8 +52,10 @@ export function ActivityTimeline({ events, incidents, className, dense }: Activi
               <span className="sr-only">{meta.label}</span>
             </span>
             <div className="min-w-0 flex-1 pt-1">
-              <p className="text-sm leading-snug font-medium">{e.title}</p>
-              {e.detail && <p className="mt-0.5 truncate text-sm text-muted-foreground">{e.detail}</p>}
+              <p className={cn("text-sm leading-snug font-medium", dense && "line-clamp-2")} title={dense ? e.title : undefined}>
+                {e.title}
+              </p>
+              {e.detail && <p className="mt-0.5 line-clamp-1 text-sm text-muted-foreground">{e.detail}</p>}
               <p className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs text-muted-foreground">
                 <time dateTime={e.at}>{formatDateTime(e.at)}</time>
                 <span aria-hidden>·</span>

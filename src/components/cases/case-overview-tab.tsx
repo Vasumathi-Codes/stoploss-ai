@@ -3,23 +3,25 @@
 import { useState } from "react"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
-import { AlertTriangle, ArrowRight, Bot } from "lucide-react"
+import { AlertTriangle, ArrowRight, BookOpenText, Bot, Clock } from "lucide-react"
 import { toast } from "sonner"
 
 import { AGENT_ICONS } from "@/components/agents/agent-card"
 import { fieldA11y, FormField } from "@/components/shared/form-field"
-import { AgentStatusBadge, PriorityBadge } from "@/components/shared/status-badges"
+import { ActionChecklist } from "@/components/action-plans/action-item"
+import { AgentStatusBadge, PriorityBadge, ProvenanceBadge } from "@/components/shared/status-badges"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
-import { useAgentState } from "@/features/agents/hooks"
+import { usePlan } from "@/features/action-plans/hooks"
+import { useAgentProvenance, useAgentState } from "@/features/agents/hooks"
 import { AGENT_ORDER, AGENTS } from "@/lib/config/agents"
 import { CASE_STATUSES, FRAUD_CATEGORIES } from "@/lib/config/taxonomy"
 import { caseService } from "@/lib/services"
 import { formatCurrency, formatDateTime } from "@/lib/utils/format"
 import { transactionRefSchema } from "@/lib/validation/incident"
-import type { ActionItem, Incident, TriState } from "@/types"
+import type { ActionItem, AgentId, AgentRunState, Incident, TriState } from "@/types"
 
 const TRI: Record<TriState, string> = { yes: "Yes", no: "No", unsure: "Not sure" }
 
@@ -38,11 +40,14 @@ export function CaseOverviewTab({
 }) {
   const agents = useAgentState(incident.id)
   const [refOpen, setRefOpen] = useState(false)
-  const topAction = actions.find((a) => a.status !== "completed")
+  const plan = usePlan(incident.id)
+  const topAction = plan.next
+  const upcoming = plan.ordered.filter((a) => a.status !== "completed" && a.id !== topAction?.id).slice(0, 3)
+  const completedCount = plan.ordered.length - plan.ordered.filter((a) => a.status !== "completed").length
 
   return (
     <div className="grid gap-6 lg:grid-cols-3">
-      <div className="space-y-6 lg:col-span-2">
+      <div className="min-w-0 space-y-6 lg:col-span-2">
         {!incident.transactionRef && (
           <div
             role="status"
@@ -67,34 +72,57 @@ export function CaseOverviewTab({
           </CardHeader>
           <CardContent className="space-y-5">
             <p className="text-sm leading-relaxed whitespace-pre-line">{incident.description}</p>
-            <dl className="grid gap-4 text-sm sm:grid-cols-2 lg:grid-cols-3">
-              <Item label="Case reference" value={<span className="font-mono">{incident.reference}</span>} />
-              <Item label="Incident category" value={FRAUD_CATEGORIES[incident.category].label} />
+            <DetailGroup title="The incident">
+              <Item label="Category" value={FRAUD_CATEGORIES[incident.category].label} />
               <Item
-                label="Approximate amount reported"
+                label="Approximate amount"
                 value={<span className="font-semibold tabular-nums">{formatCurrency(incident.amount, incident.currency)}</span>}
               />
-              <Item label="Incident date and time" value={formatDateTime(incident.occurredAt)} />
-              <Item label="Reported in app" value={formatDateTime(incident.reportedAt)} />
-              <Item label="Current status" value={CASE_STATUSES[incident.status].label} />
+              <Item label="When it happened" value={formatDateTime(incident.occurredAt)} />
               <Item label="Payment method / platform" value={incident.paymentMethod} />
               <Item
                 label="Transaction reference"
-                value={incident.transactionRef ?? <span className="text-muted-foreground">Not provided</span>}
+                value={
+                  incident.transactionRef ? (
+                    <span className="font-mono">{incident.transactionRef}</span>
+                  ) : (
+                    <span className="text-warning">Not provided</span>
+                  )
+                }
               />
-              <Item label="Account access" value={TRI[incident.hasAccountAccess]} />
               <Item label="Still happening" value={incident.ongoing ? TRI[incident.ongoing] : "Not answered"} />
+              <Item label="Access to the account" value={TRI[incident.hasAccountAccess]} />
+            </DetailGroup>
+            <DetailGroup title="This case">
+              <Item label="Case reference" value={<span className="font-mono">{incident.reference}</span>} />
+              <Item label="Status in app" value={CASE_STATUSES[incident.status].label} />
               <Item label="Evidence items" value={evidenceCount} />
+              <Item label="Reported in app" value={formatDateTime(incident.reportedAt)} />
               <Item label="Last updated" value={formatDateTime(incident.updatedAt)} />
-            </dl>
+            </DetailGroup>
           </CardContent>
         </Card>
+
+        {upcoming.length > 0 && (
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between">
+              <CardTitle>After that</CardTitle>
+              <Button size="sm" variant="ghost" onClick={() => onNavigate("actions")}>
+                Full plan ({completedCount}/{plan.ordered.length} done)
+                <ArrowRight aria-hidden />
+              </Button>
+            </CardHeader>
+            <CardContent>
+              <ActionChecklist actions={upcoming} numbered={{ start: completedCount + 2 }} compact />
+            </CardContent>
+          </Card>
+        )}
       </div>
 
-      <div className="space-y-6">
-        <Card>
+      <div className="min-w-0 space-y-6">
+        <Card className="border-primary/30">
           <CardHeader>
-            <CardTitle>Current recommended priority</CardTitle>
+            <CardTitle>Do this next</CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
             {topAction ? (
@@ -102,9 +130,23 @@ export function CaseOverviewTab({
                 <PriorityBadge action={topAction} />
                 <p className="leading-snug font-medium">{topAction.title}</p>
                 <p className="text-sm text-muted-foreground">{topAction.explanation}</p>
-                <Button size="sm" variant="secondary" onClick={() => onNavigate("actions")}>
-                  Go to action plan
-                  <ArrowRight aria-hidden />
+                <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                  <Clock aria-hidden className="size-3.5" />
+                  {topAction.timing}
+                </p>
+                {topAction.requiredInfo.length > 0 && (
+                  <div className="rounded-lg bg-muted/60 p-3 text-xs">
+                    <p className="mb-1 font-medium">Have ready</p>
+                    <ul className="list-disc space-y-0.5 pl-4 text-muted-foreground">
+                      {topAction.requiredInfo.map((r) => (
+                        <li key={r}>{r}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+                <Button size="sm" onClick={() => onNavigate("actions")}>
+                  <BookOpenText aria-hidden />
+                  Open in action plan
                 </Button>
               </>
             ) : actions.length === 0 ? (
@@ -128,15 +170,7 @@ export function CaseOverviewTab({
             <ul className="space-y-3">
               {AGENT_ORDER.map((id) => {
                 const Icon = AGENT_ICONS[id]
-                return (
-                  <li key={id} className="flex items-center justify-between gap-2">
-                    <span className="flex min-w-0 items-center gap-2 text-sm">
-                      <Icon aria-hidden className="size-4 shrink-0 text-muted-foreground" />
-                      <span className="truncate">{AGENTS[id].name}</span>
-                    </span>
-                    <AgentStatusBadge status={agents?.[id].status ?? "not_started"} />
-                  </li>
-                )
+                return <AgentStatusRow key={id} agentId={id} icon={Icon} incidentId={incident.id} state={agents?.[id]} />
               })}
             </ul>
             <Button size="sm" variant="ghost" className="mt-3 -ml-2" onClick={() => onNavigate("analysis")}>
@@ -149,6 +183,42 @@ export function CaseOverviewTab({
 
       <TransactionRefDialog incident={incident} open={refOpen} onOpenChange={setRefOpen} />
     </div>
+  )
+}
+
+function AgentStatusRow({
+  agentId,
+  icon: Icon,
+  incidentId,
+  state,
+}: {
+  agentId: AgentId
+  icon: React.ComponentType<{ className?: string; "aria-hidden"?: boolean }>
+  incidentId: string
+  state?: AgentRunState
+}) {
+  const provenance = useAgentProvenance(incidentId, agentId)
+  const status = state?.status ?? "not_started"
+  return (
+    <li className="space-y-1.5">
+      <span className="flex min-w-0 items-center gap-2 text-sm font-medium">
+        <Icon aria-hidden className="size-4 shrink-0 text-muted-foreground" />
+        <span className="truncate">{AGENTS[agentId].name}</span>
+      </span>
+      <span className="flex flex-wrap gap-1.5 pl-6">
+        <AgentStatusBadge status={status} />
+        {status !== "analyzing" && <ProvenanceBadge provenance={provenance} />}
+      </span>
+    </li>
+  )
+}
+
+function DetailGroup({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <section className="space-y-2">
+      <h3 className="text-xs font-medium tracking-wide text-muted-foreground uppercase">{title}</h3>
+      <dl className="grid gap-x-4 gap-y-3 rounded-lg border p-4 text-sm sm:grid-cols-2 lg:grid-cols-3">{children}</dl>
+    </section>
   )
 }
 

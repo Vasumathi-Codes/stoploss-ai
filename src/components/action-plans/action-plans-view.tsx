@@ -10,13 +10,14 @@ import { ProgressIndicator } from "@/components/shared/progress-indicator"
 import { ALL, SearchAndFilterBar } from "@/components/shared/search-and-filter-bar"
 import { StatCard } from "@/components/shared/stat-card"
 import { EmptyState } from "@/components/shared/states"
-import { CaseStatusBadge } from "@/components/shared/status-badges"
+import { CaseStatusBadge, OpenPriorityBadge } from "@/components/shared/status-badges"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { useActions } from "@/features/action-plans/hooks"
 import { computeProgress, useIncidents } from "@/features/cases/hooks"
 import { PRIORITIES } from "@/lib/config/taxonomy"
+import { nextStep, openPriority } from "@/lib/plan"
 
 export function ActionPlansView() {
   const incidents = useIncidents()
@@ -36,7 +37,8 @@ export function ActionPlansView() {
             incident: i,
             list,
             progress: computeProgress(list),
-            urgentOpen: list.filter((a) => a.priority === "urgent" && a.status !== "completed").length,
+            next: nextStep(list),
+            priority: openPriority(list),
           }
         }),
     [incidents, actions],
@@ -109,26 +111,30 @@ export function ActionPlansView() {
             />
           ) : (
             <ul className="grid gap-4 md:grid-cols-2">
-              {plans.map(({ incident, list, progress, urgentOpen }) => (
+              {plans.map(({ incident, list, progress, next, priority }) => (
                 <li key={incident.id}>
                   <Card className="h-full gap-4 p-5">
                     <div className="flex flex-wrap items-start justify-between gap-2">
                       <div className="min-w-0">
-                        <p className="text-xs font-medium text-primary">{incident.reference}</p>
+                        <p className="font-mono text-xs font-medium text-primary">{incident.reference}</p>
                         <p className="font-medium">{incident.title}</p>
                       </div>
-                      <CaseStatusBadge status={incident.status} />
+                      <div className="flex flex-wrap gap-1.5">
+                        <CaseStatusBadge status={incident.status} />
+                        {list.length > 0 && <OpenPriorityBadge priority={priority} />}
+                      </div>
                     </div>
                     <ProgressIndicator done={progress.done} total={progress.total} />
-                    <p className="text-sm text-muted-foreground">
-                      {list.length === 0
-                        ? "No plan generated yet — run the agent analysis."
-                        : urgentOpen > 0
-                          ? `${urgentOpen} urgent step${urgentOpen === 1 ? "" : "s"} still open.`
-                          : progress.done === progress.total
-                            ? "All steps marked complete."
-                            : "No urgent steps open."}
-                    </p>
+                    {list.length === 0 ? (
+                      <p className="text-sm text-muted-foreground">No plan generated yet — run the agent analysis.</p>
+                    ) : next ? (
+                      <div className="rounded-lg border bg-muted/30 p-3 text-sm">
+                        <p className="text-xs text-muted-foreground">Next step</p>
+                        <p className="font-medium">{next.title}</p>
+                      </div>
+                    ) : (
+                      <p className="text-sm text-muted-foreground">All steps marked complete.</p>
+                    )}
                     <Button asChild variant="secondary" size="sm" className="mt-auto w-fit">
                       <Link href={`/action-plans/${incident.id}`}>
                         Open plan

@@ -5,11 +5,11 @@ import Link from "next/link"
 import { FileSearch, ListChecks, type LucideIcon, ScanSearch, Send } from "lucide-react"
 
 import { FindingsList } from "@/components/agents/findings-list"
-import { AgentStatusBadge } from "@/components/shared/status-badges"
+import { AgentStatusBadge, ProvenanceBadge } from "@/components/shared/status-badges"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import { useAnalysisEngine, useFindings } from "@/features/agents/hooks"
+import { useAgentProvenance, useAnalysisEngine, useFindings } from "@/features/agents/hooks"
 import { AGENTS } from "@/lib/config/agents"
 import { cn } from "@/lib/utils"
 import { formatDateTime } from "@/lib/utils/format"
@@ -35,6 +35,7 @@ export function AgentCard({ agentId, state, incident, className }: AgentCardProp
   const Icon = AGENT_ICONS[agentId]
   const findings = useFindings(incident?.id, agentId)
   const { copy } = useAnalysisEngine(incident?.id)
+  const provenance = useAgentProvenance(incident?.id, agentId)
   const latest =
     findings.find((f) => f.source === "ai_analysis") ?? findings.find((f) => f.source === "mock_analysis") ?? findings[0]
   const status = state?.status ?? "not_started"
@@ -55,13 +56,16 @@ export function AgentCard({ agentId, state, incident, className }: AgentCardProp
           <p className="text-xs text-muted-foreground">{agent.role}</p>
         </div>
       </div>
-      <div className="mt-3">
+      <div className="mt-3 flex flex-wrap gap-1.5">
         <AgentStatusBadge status={status} />
+        {status !== "analyzing" && <ProvenanceBadge provenance={provenance} />}
       </div>
       <dl className="mt-3 space-y-2.5 text-sm">
         <div>
           <dt className="text-xs text-muted-foreground">Current task</dt>
-          <dd className="leading-snug">{state?.currentTask ?? "—"}</dd>
+          <dd className="line-clamp-3 leading-snug" title={state?.currentTask}>
+            {state?.currentTask ?? "—"}
+          </dd>
         </div>
         <div>
           <dt className="text-xs text-muted-foreground">Latest finding</dt>
@@ -95,11 +99,22 @@ export function AgentCard({ agentId, state, incident, className }: AgentCardProp
           </DialogHeader>
           <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
             <AgentStatusBadge status={status} />
+            <ProvenanceBadge provenance={provenance} />
             {state?.startedAt && <span>Started {formatDateTime(state.startedAt)}</span>}
             {state?.completedAt && <span>· Finished {formatDateTime(state.completedAt)}</span>}
           </div>
           <FindingsList findings={findings} emptyMessage="This agent hasn't produced any findings for this case yet." />
-          <p className="rounded-lg bg-muted p-3 text-xs text-muted-foreground">{copy.disclaimer}</p>
+          {state?.currentTask && status !== "analyzing" && (
+            <p className="rounded-lg border p-3 text-sm">
+              <span className="block text-xs text-muted-foreground">Current task</span>
+              {state.currentTask}
+            </p>
+          )}
+          <p className="rounded-lg bg-muted p-3 text-xs text-muted-foreground">
+            {provenance === "fallback"
+              ? "Microsoft Foundry did not return usable output for this agent on the last run, so the fixed template output is shown. Rerun the analysis to retry."
+              : copy.disclaimer}
+          </p>
         </DialogContent>
       </Dialog>
     </Card>

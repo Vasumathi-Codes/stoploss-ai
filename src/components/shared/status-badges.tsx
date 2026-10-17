@@ -1,5 +1,6 @@
 import {
   AlertTriangle,
+  Bot,
   Archive,
   CheckCircle2,
   Circle,
@@ -20,6 +21,7 @@ import {
 import { AGENT_STATUSES, CASE_STATUSES, FINDING_SOURCES, PRIORITIES } from "@/lib/config/taxonomy"
 import { cn } from "@/lib/utils"
 import { TONE_BADGE, type Tone } from "@/lib/utils/tone"
+import type { OpenPriority, Provenance } from "@/lib/plan"
 import type { ActionItem, AgentStatus, CaseStatus, FindingSource } from "@/types"
 
 interface ToneBadgeProps {
@@ -114,7 +116,7 @@ export function PriorityBadge({ action, className }: { action: Pick<ActionItem, 
 }
 
 const SOURCE_META: Record<FindingSource, { tone: Tone; icon: LucideIcon }> = {
-  mock_analysis: { tone: "primary", icon: FlaskConical },
+  mock_analysis: { tone: "muted", icon: FlaskConical },
   ai_analysis: { tone: "primary", icon: Sparkles },
   user_supplied: { tone: "info", icon: User },
   verified_guidance: { tone: "success", icon: ShieldCheck },
@@ -135,6 +137,61 @@ export function DemoDataBadge({ className, label = "Fictional demo data" }: { cl
   return (
     <ToneBadge tone="muted" icon={FlaskConical} className={className}>
       {label}
+    </ToneBadge>
+  )
+}
+
+const PROVENANCE: Record<Exclude<Provenance, "none">, { tone: Tone; icon: LucideIcon; label: string; title: string }> = {
+  ai: {
+    tone: "primary",
+    icon: Sparkles,
+    label: "AI output",
+    title: "Written by a Microsoft Foundry model for this case. Unverified — check before acting on it.",
+  },
+  fallback: {
+    tone: "warning",
+    icon: AlertTriangle,
+    label: "Template fallback",
+    title: "The Foundry call for this agent failed, so fixed template output is shown instead. Rerun the analysis to retry.",
+  },
+  template: {
+    tone: "muted",
+    icon: Bot,
+    label: "Template",
+    title: "Produced by fixed templates on the server. No AI model was used.",
+  },
+}
+
+/** Where an agent's current output came from. Renders nothing before the agent has output. */
+export function ProvenanceBadge({ provenance, className }: { provenance: Provenance; className?: string }) {
+  if (provenance === "none") return null
+  const meta = PROVENANCE[provenance]
+  return (
+    <ToneBadge tone={meta.tone} icon={meta.icon} className={className} title={meta.title}>
+      {meta.label}
+    </ToneBadge>
+  )
+}
+
+/** How much open priority work a case has. Counts real open steps — not a risk score. */
+export function OpenPriorityBadge({ priority, className }: { priority: OpenPriority; className?: string }) {
+  if (priority.urgent > 0) {
+    return (
+      <ToneBadge tone="danger" icon={Zap} className={className} title="Open steps marked Urgent in this case's plan">
+        {priority.urgent} urgent {priority.urgent === 1 ? "step" : "steps"} open
+      </ToneBadge>
+    )
+  }
+  if (priority.high > 0) {
+    return (
+      <ToneBadge tone="warning" icon={AlertTriangle} className={className} title="Open steps marked High in this case's plan">
+        {priority.high} high-priority {priority.high === 1 ? "step" : "steps"} open
+      </ToneBadge>
+    )
+  }
+  return (
+    <ToneBadge tone="muted" icon={CheckCircle2} className={className}>
+      {priority.open === 0 ? "No open steps" : "No urgent steps open"}
     </ToneBadge>
   )
 }

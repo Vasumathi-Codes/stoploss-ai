@@ -9,8 +9,8 @@ import type { OfficialResource } from "@/types"
 
 export function OfficialResourceCard({ resource }: { resource: OfficialResource }) {
   return (
-    <Card className="gap-4 p-5">
-      <div className="flex flex-wrap items-start justify-between gap-2">
+    <Card className={resource.verification.status === "verified" ? "gap-4 p-5" : "gap-4 border-dashed p-5"}>
+      <div className="flex items-start justify-between gap-3">
         <div className="min-w-0 space-y-0.5">
           <p className="text-xs font-medium text-muted-foreground">{resource.organization}</p>
           <h3 className="text-base leading-snug font-semibold">{resource.name}</h3>
